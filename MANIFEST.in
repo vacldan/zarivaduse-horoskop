@@ -1,0 +1,8 @@
+include CMakeLists.txt
+include LICENSE.txt
+include Makefile
+include README.rst
+graft docs
+graft libswe
+graft swephelp
+graft tests
