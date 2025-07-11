@@ -193,10 +193,10 @@ def create_chart_visualization(planet_data):
         
         # Nastavení stylu
         plt.style.use('default')
-        fig, ax = plt.subplots(figsize=(12, 12), subplot_kw=dict(projection='polar'))
+        fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(projection='polar'))
         fig.patch.set_facecolor('white')
         
-        # Nastavení kruhu (původní verze)
+        # Nastavení kruhu
         ax.set_theta_zero_location('E')  # 0° na východě (Aries)
         ax.set_theta_direction(-1)  # Proti směru hodinových ručiček
         
@@ -217,7 +217,7 @@ def create_chart_visualization(planet_data):
             theta_segment = np.linspace(theta_start, theta_end, 50)
             
             # Lehký barevný segment pro každé znamení
-            ax.fill_between(theta_segment, 0.8, 1.2, alpha=0.1, color=color)
+            ax.fill_between(theta_segment, 0.8, 1.2, alpha=0.15, color=color)
         
         # Barvy planet
         planet_colors = {
@@ -226,6 +226,11 @@ def create_chart_visualization(planet_data):
             "Uranus": "#4FD0E3", "Neptune": "#4169E1", "Pluto": "#8B4513",
             "Ascendant": "#000000", "Rahu": "#708090", "Ketu": "#696969"
         }
+        
+        # Symboly planet
+        symbols = {"Sun": "☉", "Moon": "☽", "Mercury": "☿", "Venus": "♀", 
+                  "Mars": "♂", "Jupiter": "♃", "Saturn": "♄", "Uranus": "♅",
+                  "Neptune": "♆", "Pluto": "♇", "Ascendant": "ASC", "Rahu": "☊", "Ketu": "☋"}
         
         # Vykreslení planet s tropickou korekcí
         ayanamsa_1988 = 23.9  # Ayanamsa pro rok 1988
@@ -244,62 +249,48 @@ def create_chart_visualization(planet_data):
                 theta = np.radians(tropical_longitude)
                 
                 # Symbol a barva planety
-                symbols = {"Sun": "☉", "Moon": "☽", "Mercury": "☿", "Venus": "♀", 
-                          "Mars": "♂", "Jupiter": "♃", "Saturn": "♄", "Uranus": "♅",
-                          "Neptune": "♆", "Pluto": "♇", "Ascendant": "ASC", "Rahu": "☊", "Ketu": "☋"}
                 symbol = symbols.get(name, name[:3])
                 color = planet_colors.get(name, "#333333")
                 
                 # Vykreslení planety
-                ax.plot(theta, 1, 'o', markersize=12, color=color, markeredgecolor='black', markeredgewidth=1)
-                ax.text(theta, 1.15, symbol, ha='center', va='center', fontsize=11, fontweight='bold')
+                ax.plot(theta, 1, 'o', markersize=15, color=color, markeredgecolor='white', markeredgewidth=2)
+                ax.text(theta, 1.15, symbol, ha='center', va='center', fontsize=12, fontweight='bold', color='black')
                 
                 # Přidáme stupně pro důležité planety
                 if name in ["Sun", "Moon", "Ascendant"]:
                     degree = tropical_longitude % 30
-                    ax.text(theta, 0.85, f"{degree:.0f}°", ha='center', va='center', fontsize=8, alpha=0.7)
+                    ax.text(theta, 0.85, f"{degree:.0f}°", ha='center', va='center', fontsize=9, color='gray')
         
         # Označení znamení
         for i, sign in enumerate(zodiac_signs):
             ax.text(sign_positions[i], 1.35, sign, ha='center', va='center', 
-                   fontsize=12, fontweight='bold', color='#2C3E50')
+                   fontsize=11, fontweight='bold', color='#2C3E50')
         
         # Označení stupňů
         degree_positions = np.arange(0, 360, 30)
         for deg in degree_positions:
             theta_deg = np.radians(deg)
             ax.text(theta_deg, 1.45, f"{deg}°", ha='center', va='center', 
-                   fontsize=9, alpha=0.6, color='#7F8C8D')
+                   fontsize=8, alpha=0.6, color='#7F8C8D')
         
         # Nastavení os
         ax.set_ylim(0, 1.6)
         ax.set_rticks([])
         ax.grid(True, alpha=0.3)
-        ax.set_title("Astrologický kruh - Pozice planet", fontsize=16, fontweight='bold', pad=20)
+        ax.set_title("Astrologický kruh - Pozice planet", fontsize=14, fontweight='bold', pad=20)
         
-        # Legenda planet
-        legend_elements = []
-        for planet in planets_list:
-            if isinstance(planet, dict):
-                name = planet.get("name", "")
-                if name in symbols:
-                    color = planet_colors.get(name, "#333333")
-                    legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
-                                                    markerfacecolor=color, markersize=8, 
-                                                    label=f"{symbols[name]} {name}"))
-        
-        if legend_elements:
-            ax.legend(handles=legend_elements, loc='center', bbox_to_anchor=(0.5, -0.1), 
-                     ncol=5, fontsize=9)
-        
+        # Zobraz graf
         st.pyplot(fig)
         plt.close()
         
+        # Přidej textovou reprezentaci pod graf
+        display_text_chart(planet_data)
+        
     except ImportError:
-        st.info("Matplotlib není dostupný pro vizualizaci. Zobrazuji textovou reprezentaci.")
+        st.warning("⚠️ Matplotlib není dostupný pro vizualizaci kruhu.")
         display_text_chart(planet_data)
     except Exception as e:
-        st.warning(f"Chyba při vytváření vizualizace: {e}")
+        st.error(f"Chyba při vytváření vizualizace: {e}")
         display_text_chart(planet_data)
 
 def display_text_chart(planet_data):
