@@ -177,15 +177,11 @@ def create_planet_table(planet_data):
         #     st.warning(f"⚠️ Retrográdní planety: {', '.join(retrograde_planets)}")
 
 def create_chart_visualization(planet_data):
-    """Vytvoří krásnou vizualizaci astrologického kruhu"""
+    """Vytvoří vizualizaci astrologického kruhu"""
     
     st.subheader("🔮 Astrologický kruh")
     
     try:
-        import plotly.graph_objects as go
-        import plotly.express as px
-        import numpy as np
-        
         if isinstance(planet_data, dict) and "planet_position" in planet_data:
             planets_list = planet_data["planet_position"]
         else:
@@ -195,64 +191,20 @@ def create_chart_visualization(planet_data):
         # Symboly planet
         symbols = {"Sun": "☉", "Moon": "☽", "Mercury": "☿", "Venus": "♀", 
                   "Mars": "♂", "Jupiter": "♃", "Saturn": "♄", "Uranus": "♅",
-                  "Neptune": "♆", "Pluto": "♇", "Ascendant": "ASC", "Rahu": "☊", "Ketu": "☋"}
+                  "Neptune": "♆", "Pluto": "♇", "Ascendant": "🔺", "Rahu": "☊", "Ketu": "☋"}
         
-        # Barvy planet
-        planet_colors = {
-            "Sun": "#FFD700", "Moon": "#C0C0C0", "Mercury": "#FFA500", "Venus": "#FF69B4", 
-            "Mars": "#FF4500", "Jupiter": "#8A2BE2", "Saturn": "#2F4F4F", 
-            "Uranus": "#4FD0E3", "Neptune": "#4169E1", "Pluto": "#8B4513",
-            "Ascendant": "#000000", "Rahu": "#708090", "Ketu": "#696969"
+        # Znamení kruhu s emoji
+        zodiac_info = {
+            "Aries": "♈", "Taurus": "♉", "Gemini": "♊", "Cancer": "♋",
+            "Leo": "♌", "Virgo": "♍", "Libra": "♎", "Scorpio": "♏",
+            "Sagittarius": "♐", "Capricorn": "♑", "Aquarius": "♒", "Pisces": "♓"
         }
-        
-        # Znamení kruhu
-        zodiac_signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-                       "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
         
         # Ayanamsa pro konverzi
         ayanamsa_1988 = 23.9
         
-        # Vytvoř Plotly figure
-        fig = go.Figure()
-        
-        # Přidej vnější kruh
-        theta_circle = np.linspace(0, 2*np.pi, 100)
-        x_outer = np.cos(theta_circle)
-        y_outer = np.sin(theta_circle)
-        x_inner = 0.7 * np.cos(theta_circle)
-        y_inner = 0.7 * np.sin(theta_circle)
-        
-        # Vnější kruh
-        fig.add_trace(go.Scatter(x=x_outer, y=y_outer, mode='lines', 
-                                line=dict(color='black', width=2), 
-                                showlegend=False, hoverinfo='skip'))
-        
-        # Vnitřní kruh
-        fig.add_trace(go.Scatter(x=x_inner, y=y_inner, mode='lines', 
-                                line=dict(color='gray', width=1), 
-                                showlegend=False, hoverinfo='skip'))
-        
-        # Přidej dělící čáry pro znamení
-        for i in range(12):
-            angle = i * 30 * np.pi / 180  # Převod na radiány
-            x_start, y_start = 0.7 * np.cos(angle), 0.7 * np.sin(angle)
-            x_end, y_end = np.cos(angle), np.sin(angle)
-            
-            fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], 
-                                    mode='lines', line=dict(color='lightgray', width=1),
-                                    showlegend=False, hoverinfo='skip'))
-        
-        # Přidej názvy znamení
-        for i, sign in enumerate(zodiac_signs):
-            angle = (i * 30 + 15) * np.pi / 180  # Střed každého znamení
-            x = 0.85 * np.cos(angle)
-            y = 0.85 * np.sin(angle)
-            
-            fig.add_annotation(x=x, y=y, text=sign[:3], showarrow=False,
-                             font=dict(size=10, color='darkblue'))
-        
-        # Přidej planety
-        planet_x, planet_y, planet_colors_list, planet_names, planet_text = [], [], [], [], []
+        # Seskupení planet podle znamení
+        signs_with_planets = {}
         
         for planet in planets_list:
             if isinstance(planet, dict):
@@ -264,58 +216,72 @@ def create_chart_visualization(planet_data):
                 if tropical_longitude >= 360:
                     tropical_longitude -= 360
                 
-                # Pozice planety na kruhu (Plotly používá matematické úhly)
-                angle = tropical_longitude * np.pi / 180
-                radius = 0.55
-                x = radius * np.cos(angle)
-                y = radius * np.sin(angle)
+                sign_index = int(tropical_longitude // 30)
+                zodiac_signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+                               "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
                 
-                planet_x.append(x)
-                planet_y.append(y)
-                planet_colors_list.append(planet_colors.get(name, "#333333"))
-                planet_names.append(name)
-                
-                symbol = symbols.get(name, name[:3])
-                degree = tropical_longitude % 30
-                planet_text.append(f"{symbol}<br>{name}<br>{degree:.0f}°")
+                if 0 <= sign_index < 12:
+                    sign = zodiac_signs[sign_index]
+                    degree = tropical_longitude % 30
+                    
+                    if sign not in signs_with_planets:
+                        signs_with_planets[sign] = []
+                    
+                    planet_symbol = symbols.get(name, name[:3])
+                    signs_with_planets[sign].append({
+                        'symbol': planet_symbol,
+                        'name': name,
+                        'degree': degree
+                    })
         
-        # Přidej planety jako scatter
-        fig.add_trace(go.Scatter(
-            x=planet_x, y=planet_y,
-            mode='markers+text',
-            marker=dict(size=20, color=planet_colors_list, 
-                       line=dict(color='white', width=2)),
-            text=[symbols.get(name, name[:3]) for name in planet_names],
-            textfont=dict(color='white', size=12),
-            hovertext=planet_text,
-            hoverinfo='text',
-            showlegend=False
-        ))
+        # ASCII kruh representation
+        st.markdown("```")
+        ascii_art = """
+                    ♈ Aries
+               ♓           ♉
+           Pisces         Taurus
+        ♒                     ♊
+      Aquarius             Gemini
         
-        # Nastav layout
-        fig.update_layout(
-            title="Astrologický kruh - Pozice planet",
-            xaxis=dict(range=[-1.2, 1.2], showgrid=False, zeroline=False, 
-                      showticklabels=False, scaleanchor="y", scaleratio=1),
-            yaxis=dict(range=[-1.2, 1.2], showgrid=False, zeroline=False, 
-                      showticklabels=False),
-            plot_bgcolor='white',
-            width=500, height=500,
-            margin=dict(l=20, r=20, t=50, b=20)
-        )
-        
-        # Zobraz graf
-        st.plotly_chart(fig, use_container_width=True)
-        
-    except ImportError:
-        st.warning("⚠️ Plotly není dostupný. Zobrazuji textovou reprezentaci.")
-        display_text_chart(planet_data)
-    except Exception as e:
-        st.error(f"Chyba při vytváření Plotly kruhu: {e}")
-        display_text_chart(planet_data)
+    ♑                         ♋
+  Capricorn    🔮 KRUH 🔮    Cancer
     
-    # Textová reprezentace pod kruhem
-    display_text_chart(planet_data)
+        ♐                     ♌
+      Sagittarius            Leo
+        ♏                     ♍
+           Scorpio         Virgo
+               ♎           
+                   Libra
+        """
+        st.markdown("```")
+        
+        # Detailní rozložení planet po znameních
+        st.markdown("### 🌟 Planety ve znameních")
+        
+        # Uspořádání do 3 sloupců
+        col1, col2, col3 = st.columns(3)
+        
+        zodiac_order = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+                       "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+        
+        for i, sign in enumerate(zodiac_order):
+            col = [col1, col2, col3][i % 3]
+            
+            with col:
+                emoji = zodiac_info[sign]
+                st.markdown(f"**{emoji} {sign}**")
+                
+                if sign in signs_with_planets:
+                    for planet_info in signs_with_planets[sign]:
+                        st.write(f"  {planet_info['symbol']} {planet_info['name']} ({planet_info['degree']:.0f}°)")
+                else:
+                    st.write("  _prázdné_")
+                st.write("")  # Mezera
+        
+    except Exception as e:
+        st.error(f"Chyba při vytváření vizualizace: {e}")
+        # Fallback jen pokud je chyba
+        display_text_chart(planet_data)
 
 def display_text_chart(planet_data):
     """Zobrazí textovou reprezentaci astrologického kruhu s tropickou korekcí"""
