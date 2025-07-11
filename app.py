@@ -4,6 +4,7 @@ import datetime
 import json
 from urllib.parse import urlencode
 import time
+import math
 
 # Konstanty pro API
 PROKERALA_CLIENT_ID = "a299b037-8f17-4973-94ec-2ff6181170c9"
@@ -180,44 +181,18 @@ def create_chart_visualization(planet_data):
     
     st.subheader("🔮 Astrologický kruh")
     
+    # CSS/HTML kruh místo matplotlib
     try:
-        import matplotlib.pyplot as plt
-        import numpy as np
-        
-        # Získáme data o planetách
         if isinstance(planet_data, dict) and "planet_position" in planet_data:
             planets_list = planet_data["planet_position"]
         else:
             st.info("Vizualizace není dostupná pro tuto strukturu dat")
             return
         
-        # Nastavení stylu
-        plt.style.use('default')
-        fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(projection='polar'))
-        fig.patch.set_facecolor('white')
-        
-        # Nastavení kruhu
-        ax.set_theta_zero_location('E')  # 0° na východě (Aries)
-        ax.set_theta_direction(-1)  # Proti směru hodinových ručiček
-        
-        # Znamení a jejich barvy
-        zodiac_signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-                       "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
-        
-        sign_colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD',
-                      '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA']
-        
-        # Pozice znamení (každé znamení má 30°)
-        sign_positions = np.linspace(0, 2*np.pi, 13)[:-1]
-        
-        # Vykreslení segmentů znamení
-        for i, (sign, color) in enumerate(zip(zodiac_signs, sign_colors)):
-            theta_start = sign_positions[i] - np.pi/12
-            theta_end = sign_positions[i] + np.pi/12
-            theta_segment = np.linspace(theta_start, theta_end, 50)
-            
-            # Lehký barevný segment pro každé znamení
-            ax.fill_between(theta_segment, 0.8, 1.2, alpha=0.15, color=color)
+        # Symboly planet
+        symbols = {"Sun": "☉", "Moon": "☽", "Mercury": "☿", "Venus": "♀", 
+                  "Mars": "♂", "Jupiter": "♃", "Saturn": "♄", "Uranus": "♅",
+                  "Neptune": "♆", "Pluto": "♇", "Ascendant": "ASC", "Rahu": "☊", "Ketu": "☋"}
         
         # Barvy planet
         planet_colors = {
@@ -227,71 +202,79 @@ def create_chart_visualization(planet_data):
             "Ascendant": "#000000", "Rahu": "#708090", "Ketu": "#696969"
         }
         
-        # Symboly planet
-        symbols = {"Sun": "☉", "Moon": "☽", "Mercury": "☿", "Venus": "♀", 
-                  "Mars": "♂", "Jupiter": "♃", "Saturn": "♄", "Uranus": "♅",
-                  "Neptune": "♆", "Pluto": "♇", "Ascendant": "ASC", "Rahu": "☊", "Ketu": "☋"}
+        # Znamení kruhu
+        zodiac_signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+                       "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
         
-        # Vykreslení planet s tropickou korekcí
-        ayanamsa_1988 = 23.9  # Ayanamsa pro rok 1988
+        # Ayanamsa pro konverzi
+        ayanamsa_1988 = 23.9
         
+        # HTML/CSS kruh
+        html_content = """
+        <div style="display: flex; justify-content: center; margin: 20px 0;">
+            <div style="position: relative; width: 400px; height: 400px; border: 3px solid #333; border-radius: 50%; background: linear-gradient(45deg, #f0f8ff, #e6f3ff);">
+        """
+        
+        # Přidej znamení kolem kruhu
+        for i, sign in enumerate(zodiac_signs):
+            angle = i * 30 - 90  # -90 pro start v Aries (nahoře)
+            x = 50 + 45 * math.cos(math.radians(angle))
+            y = 50 + 45 * math.sin(math.radians(angle))
+            
+            html_content += f"""
+                <div style="position: absolute; top: {y-2}%; left: {x-3}%; 
+                           font-size: 12px; font-weight: bold; color: #2c3e50;
+                           text-align: center; width: 50px;">
+                    {sign}
+                </div>
+            """
+        
+        # Přidej planety
         for planet in planets_list:
             if isinstance(planet, dict):
                 name = planet.get("name", "")
                 vedic_longitude = planet.get("longitude", 0)
                 
-                # KONVERZE: Vedická -> Tropická longitude
+                # Konverze na tropickou
                 tropical_longitude = vedic_longitude + ayanamsa_1988
                 if tropical_longitude >= 360:
                     tropical_longitude -= 360
                 
-                # Převod na radiány
-                theta = np.radians(tropical_longitude)
+                # Pozice planety
+                angle = tropical_longitude - 90  # -90 pro start v Aries
+                x = 50 + 35 * math.cos(math.radians(angle))
+                y = 50 + 35 * math.sin(math.radians(angle))
                 
-                # Symbol a barva planety
                 symbol = symbols.get(name, name[:3])
                 color = planet_colors.get(name, "#333333")
                 
-                # Vykreslení planety
-                ax.plot(theta, 1, 'o', markersize=15, color=color, markeredgecolor='white', markeredgewidth=2)
-                ax.text(theta, 1.15, symbol, ha='center', va='center', fontsize=12, fontweight='bold', color='black')
-                
-                # Přidáme stupně pro důležité planety
-                if name in ["Sun", "Moon", "Ascendant"]:
-                    degree = tropical_longitude % 30
-                    ax.text(theta, 0.85, f"{degree:.0f}°", ha='center', va='center', fontsize=9, color='gray')
+                html_content += f"""
+                    <div style="position: absolute; top: {y-2}%; left: {x-2}%; 
+                               width: 30px; height: 30px; 
+                               background: {color}; 
+                               border: 2px solid white;
+                               border-radius: 50%; 
+                               display: flex; align-items: center; justify-content: center;
+                               font-size: 14px; font-weight: bold; color: white;
+                               box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                               text-shadow: 1px 1px 1px rgba(0,0,0,0.5);"
+                         title="{name}">
+                        {symbol}
+                    </div>
+                """
         
-        # Označení znamení
-        for i, sign in enumerate(zodiac_signs):
-            ax.text(sign_positions[i], 1.35, sign, ha='center', va='center', 
-                   fontsize=11, fontweight='bold', color='#2C3E50')
+        html_content += """
+            </div>
+        </div>
+        """
         
-        # Označení stupňů
-        degree_positions = np.arange(0, 360, 30)
-        for deg in degree_positions:
-            theta_deg = np.radians(deg)
-            ax.text(theta_deg, 1.45, f"{deg}°", ha='center', va='center', 
-                   fontsize=8, alpha=0.6, color='#7F8C8D')
+        st.markdown(html_content, unsafe_allow_html=True)
         
-        # Nastavení os
-        ax.set_ylim(0, 1.6)
-        ax.set_rticks([])
-        ax.grid(True, alpha=0.3)
-        ax.set_title("Astrologický kruh - Pozice planet", fontsize=14, fontweight='bold', pad=20)
-        
-        # Zobraz graf
-        st.pyplot(fig)
-        plt.close()
-        
-        # Přidej textovou reprezentaci pod graf
-        display_text_chart(planet_data)
-        
-    except ImportError:
-        st.warning("⚠️ Matplotlib není dostupný pro vizualizaci kruhu.")
-        display_text_chart(planet_data)
     except Exception as e:
-        st.error(f"Chyba při vytváření vizualizace: {e}")
-        display_text_chart(planet_data)
+        st.warning(f"Chyba při vytváření HTML vizualizace: {e}")
+    
+    # Vždy zobraz textovou reprezentaci
+    display_text_chart(planet_data)
 
 def display_text_chart(planet_data):
     """Zobrazí textovou reprezentaci astrologického kruhu s tropickou korekcí"""
