@@ -264,7 +264,7 @@ def create_chart_visualization(planet_data):
                     planet_symbol = symbols.get(name, name[:3])
                     signs_with_planets_visual[sign].append(planet_symbol)
         
-        # Jednoduchá, ale funkční kruhová vizualizace
+        # Jednoduchá a funkční vizualizace kruhu pomocí čistého Streamlit
         st.markdown("### 🌟 Astrologický kruh")
         
         # Připrav data pro každé znamení
@@ -278,75 +278,73 @@ def create_chart_visualization(planet_data):
                 'planets': signs_with_planets_visual.get(sign, [])
             }
         
-        # Vytvoř kruh pomocí columns a metrics
-        col1, col2, col3 = st.columns([1, 2, 1])
+        # Vytvoř kruh pomocí streamlit layout - 3x3 mřížka
+        st.markdown("---")
         
-        with col2:  # Středový sloupec
-            # Horní řada
-            cols_top = st.columns(5)
-            with cols_top[1]:
-                st.write(f"**{zodiac_data['Pisces']['emoji']} Pisces**")
-                if zodiac_data['Pisces']['planets']:
-                    st.write(" ".join(zodiac_data['Pisces']['planets']))
-            with cols_top[2]:
-                st.write(f"**{zodiac_data['Aries']['emoji']} Aries**")
-                if zodiac_data['Aries']['planets']:
-                    st.write(" ".join(zodiac_data['Aries']['planets']))
-            with cols_top[3]:
-                st.write(f"**{zodiac_data['Taurus']['emoji']} Taurus**")
-                if zodiac_data['Taurus']['planets']:
-                    st.write(" ".join(zodiac_data['Taurus']['planets']))
-            
-            # Střední řada
-            cols_mid = st.columns(5)
-            with cols_mid[0]:
-                st.write(f"**{zodiac_data['Aquarius']['emoji']} Aquarius**")
-                if zodiac_data['Aquarius']['planets']:
-                    st.write(" ".join(zodiac_data['Aquarius']['planets']))
-            with cols_mid[1]:
-                st.write(f"**{zodiac_data['Capricorn']['emoji']} Capricorn**")
-                if zodiac_data['Capricorn']['planets']:
-                    st.write(" ".join(zodiac_data['Capricorn']['planets']))
-            
-            with cols_mid[2]:
-                st.markdown("### 🔮")
-                st.markdown("**KRUH**")
-            
-            with cols_mid[3]:
-                st.write(f"**{zodiac_data['Gemini']['emoji']} Gemini**")
-                if zodiac_data['Gemini']['planets']:
-                    st.write(" ".join(zodiac_data['Gemini']['planets']))
-            with cols_mid[4]:
-                st.write(f"**{zodiac_data['Cancer']['emoji']} Cancer**")
-                if zodiac_data['Cancer']['planets']:
-                    st.write(" ".join(zodiac_data['Cancer']['planets']))
-            
-            # Dolní řada
-            cols_bot = st.columns(5)
-            with cols_bot[1]:
-                st.write(f"**{zodiac_data['Scorpio']['emoji']} Scorpio**")
-                if zodiac_data['Scorpio']['planets']:
-                    st.write(" ".join(zodiac_data['Scorpio']['planets']))
-            with cols_bot[2]:
-                st.write(f"**{zodiac_data['Libra']['emoji']} Libra**")
-                if zodiac_data['Libra']['planets']:
-                    st.write(" ".join(zodiac_data['Libra']['planets']))
-            with cols_bot[3]:
-                st.write(f"**{zodiac_data['Virgo']['emoji']} Virgo**")
-                if zodiac_data['Virgo']['planets']:
-                    st.write(" ".join(zodiac_data['Virgo']['planets']))
-            
-            # Zbývající znamení na stranách
-            st.write("---")
-            cols_sides = st.columns(3)
-            with cols_sides[0]:
-                st.write(f"**{zodiac_data['Sagittarius']['emoji']} Sagittarius**")
-                if zodiac_data['Sagittarius']['planets']:
-                    st.write(" ".join(zodiac_data['Sagittarius']['planets']))
-            with cols_sides[2]:
-                st.write(f"**{zodiac_data['Leo']['emoji']} Leo**")
-                if zodiac_data['Leo']['planets']:
-                    st.write(" ".join(zodiac_data['Leo']['planets']))
+        # Horní řada (Pisces, Aries, Taurus)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**{zodiac_data['Pisces']['emoji']} Pisces**")
+            if zodiac_data['Pisces']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Pisces']['planets'])}")
+        with col2:
+            st.markdown(f"**{zodiac_data['Aries']['emoji']} Aries**")
+            if zodiac_data['Aries']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Aries']['planets'])}")
+        with col3:
+            st.markdown(f"**{zodiac_data['Taurus']['emoji']} Taurus**")
+            if zodiac_data['Taurus']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Taurus']['planets'])}")
+        
+        # Střední řada (Aquarius, KRUH, Gemini)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**{zodiac_data['Aquarius']['emoji']} Aquarius**")
+            if zodiac_data['Aquarius']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Aquarius']['planets'])}")
+        with col2:
+            st.markdown("### 🔮")
+            st.markdown("**KRUH**")
+        with col3:
+            st.markdown(f"**{zodiac_data['Gemini']['emoji']} Gemini**")
+            if zodiac_data['Gemini']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Gemini']['planets'])}")
+        
+        # Dolní řada (Capricorn, Sagittarius, Cancer)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**{zodiac_data['Capricorn']['emoji']} Capricorn**")
+            if zodiac_data['Capricorn']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Capricorn']['planets'])}")
+        with col2:
+            st.markdown(f"**{zodiac_data['Sagittarius']['emoji']} Sagittarius**")
+            if zodiac_data['Sagittarius']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Sagittarius']['planets'])}")
+        with col3:
+            st.markdown(f"**{zodiac_data['Cancer']['emoji']} Cancer**")
+            if zodiac_data['Cancer']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Cancer']['planets'])}")
+        
+        # Čtvrtá řada (Leo, Virgo, Libra, Scorpio)
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown(f"**{zodiac_data['Leo']['emoji']} Leo**")
+            if zodiac_data['Leo']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Leo']['planets'])}")
+        with col2:
+            st.markdown(f"**{zodiac_data['Virgo']['emoji']} Virgo**")
+            if zodiac_data['Virgo']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Virgo']['planets'])}")
+        with col3:
+            st.markdown(f"**{zodiac_data['Libra']['emoji']} Libra**")
+            if zodiac_data['Libra']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Libra']['planets'])}")
+        with col4:
+            st.markdown(f"**{zodiac_data['Scorpio']['emoji']} Scorpio**")
+            if zodiac_data['Scorpio']['planets']:
+                st.markdown(f"🪐 {' '.join(zodiac_data['Scorpio']['planets'])}")
+        
+        st.markdown("---")
         
         # Detailní rozložení planet po znameních
         st.markdown("### 🌟 Planety ve znameních")
