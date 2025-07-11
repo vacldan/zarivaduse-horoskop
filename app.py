@@ -171,10 +171,10 @@ def create_planet_table(planet_data):
             direct_count = len(table_data) - retrograde_count
             st.metric("Přímý pohyb", direct_count)
         
-        # Retrográdní planety
-        if retrograde_count > 0:
-            retrograde_planets = [row["Planet"] for row in table_data if "Retrograde" in row["Motion"]]
-            st.warning(f"⚠️ Retrográdní planety: {', '.join(retrograde_planets)}")
+        # Retrográdní planety - skryto
+        # if retrograde_count > 0:
+        #     retrograde_planets = [row["Planet"] for row in table_data if "Retrograde" in row["Motion"]]
+        #     st.warning(f"⚠️ Retrográdní planety: {', '.join(retrograde_planets)}")
 
 def create_chart_visualization(planet_data):
     """Vytvoří krásnou vizualizaci astrologického kruhu"""
@@ -182,6 +182,10 @@ def create_chart_visualization(planet_data):
     st.subheader("🔮 Astrologický kruh")
     
     try:
+        import plotly.graph_objects as go
+        import plotly.express as px
+        import numpy as np
+        
         if isinstance(planet_data, dict) and "planet_position" in planet_data:
             planets_list = planet_data["planet_position"]
         else:
@@ -207,62 +211,49 @@ def create_chart_visualization(planet_data):
         
         # Ayanamsa pro konverzi
         ayanamsa_1988 = 23.9
-        center_x, center_y = 200, 200
-        radius = 150
         
-        # Začátek SVG kruhu
-        svg_content = f'''
-        <div style="display: flex; justify-content: center; margin: 20px 0;">
-            <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
-                <!-- Vnější kruh -->
-                <circle cx="{center_x}" cy="{center_y}" r="{radius}" 
-                        fill="none" stroke="#333" stroke-width="3"/>
-                
-                <!-- Vnitřní kruh -->
-                <circle cx="{center_x}" cy="{center_y}" r="{radius-30}" 
-                        fill="none" stroke="#ccc" stroke-width="1"/>
-        '''
+        # Vytvoř Plotly figure
+        fig = go.Figure()
         
-        # Přidej dělící čáry pro znamení (každých 30°)
+        # Přidej vnější kruh
+        theta_circle = np.linspace(0, 2*np.pi, 100)
+        x_outer = np.cos(theta_circle)
+        y_outer = np.sin(theta_circle)
+        x_inner = 0.7 * np.cos(theta_circle)
+        y_inner = 0.7 * np.sin(theta_circle)
+        
+        # Vnější kruh
+        fig.add_trace(go.Scatter(x=x_outer, y=y_outer, mode='lines', 
+                                line=dict(color='black', width=2), 
+                                showlegend=False, hoverinfo='skip'))
+        
+        # Vnitřní kruh
+        fig.add_trace(go.Scatter(x=x_inner, y=y_inner, mode='lines', 
+                                line=dict(color='gray', width=1), 
+                                showlegend=False, hoverinfo='skip'))
+        
+        # Přidej dělící čáry pro znamení
         for i in range(12):
-            angle_deg = i * 30 - 90  # Start v Aries (nahoře)
-            angle_rad = math.radians(angle_deg)
-            x1 = center_x + (radius-30) * math.cos(angle_rad)
-            y1 = center_y + (radius-30) * math.sin(angle_rad)
-            x2 = center_x + radius * math.cos(angle_rad)
-            y2 = center_y + radius * math.sin(angle_rad)
+            angle = i * 30 * np.pi / 180  # Převod na radiány
+            x_start, y_start = 0.7 * np.cos(angle), 0.7 * np.sin(angle)
+            x_end, y_end = np.cos(angle), np.sin(angle)
             
-            svg_content += f'''
-                <line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" 
-                      stroke="#ddd" stroke-width="1"/>
-            '''
+            fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], 
+                                    mode='lines', line=dict(color='lightgray', width=1),
+                                    showlegend=False, hoverinfo='skip'))
         
         # Přidej názvy znamení
         for i, sign in enumerate(zodiac_signs):
-            angle_deg = i * 30 + 15 - 90  # Střed každého znamení
-            angle_rad = math.radians(angle_deg)
-            x = center_x + (radius - 15) * math.cos(angle_rad)
-            y = center_y + (radius - 15) * math.sin(angle_rad)
+            angle = (i * 30 + 15) * np.pi / 180  # Střed každého znamení
+            x = 0.85 * np.cos(angle)
+            y = 0.85 * np.sin(angle)
             
-            svg_content += f'''
-                <text x="{x}" y="{y}" text-anchor="middle" 
-                      font-family="Arial, sans-serif" font-size="11" font-weight="bold" 
-                      fill="#2c3e50">{sign[:3]}</text>
-            '''
-        
-        # Přidej stupně (0°, 30°, 60°, ...)
-        for deg in range(0, 360, 30):
-            angle_rad = math.radians(deg - 90)
-            x = center_x + (radius + 15) * math.cos(angle_rad)
-            y = center_y + (radius + 15) * math.sin(angle_rad)
-            
-            svg_content += f'''
-                <text x="{x}" y="{y}" text-anchor="middle" 
-                      font-family="Arial, sans-serif" font-size="9" 
-                      fill="#666">{deg}°</text>
-            '''
+            fig.add_annotation(x=x, y=y, text=sign[:3], showarrow=False,
+                             font=dict(size=10, color='darkblue'))
         
         # Přidej planety
+        planet_x, planet_y, planet_colors_list, planet_names, planet_text = [], [], [], [], []
+        
         for planet in planets_list:
             if isinstance(planet, dict):
                 name = planet.get("name", "")
@@ -273,46 +264,55 @@ def create_chart_visualization(planet_data):
                 if tropical_longitude >= 360:
                     tropical_longitude -= 360
                 
-                # Pozice planety na kruhu
-                angle_rad = math.radians(tropical_longitude - 90)  # -90 pro start v Aries
-                planet_radius = radius - 50
-                x = center_x + planet_radius * math.cos(angle_rad)
-                y = center_y + planet_radius * math.sin(angle_rad)
+                # Pozice planety na kruhu (Plotly používá matematické úhly)
+                angle = tropical_longitude * np.pi / 180
+                radius = 0.55
+                x = radius * np.cos(angle)
+                y = radius * np.sin(angle)
+                
+                planet_x.append(x)
+                planet_y.append(y)
+                planet_colors_list.append(planet_colors.get(name, "#333333"))
+                planet_names.append(name)
                 
                 symbol = symbols.get(name, name[:3])
-                color = planet_colors.get(name, "#333333")
-                
-                # Kruh planety
-                svg_content += f'''
-                    <circle cx="{x}" cy="{y}" r="12" 
-                            fill="{color}" stroke="white" stroke-width="2"/>
-                    <text x="{x}" y="{y+4}" text-anchor="middle" 
-                          font-family="Arial, sans-serif" font-size="10" font-weight="bold" 
-                          fill="white">{symbol}</text>
-                '''
-                
-                # Přidej stupně pro důležité planety
-                if name in ["Sun", "Moon", "Ascendant"]:
-                    degree = tropical_longitude % 30
-                    degree_x = center_x + (planet_radius - 25) * math.cos(angle_rad)
-                    degree_y = center_y + (planet_radius - 25) * math.sin(angle_rad)
-                    svg_content += f'''
-                        <text x="{degree_x}" y="{degree_y}" text-anchor="middle" 
-                              font-family="Arial, sans-serif" font-size="8" 
-                              fill="#666">{degree:.0f}°</text>
-                    '''
+                degree = tropical_longitude % 30
+                planet_text.append(f"{symbol}<br>{name}<br>{degree:.0f}°")
         
-        # Uzavři SVG
-        svg_content += '''
-            </svg>
-        </div>
-        '''
+        # Přidej planety jako scatter
+        fig.add_trace(go.Scatter(
+            x=planet_x, y=planet_y,
+            mode='markers+text',
+            marker=dict(size=20, color=planet_colors_list, 
+                       line=dict(color='white', width=2)),
+            text=[symbols.get(name, name[:3]) for name in planet_names],
+            textfont=dict(color='white', size=12),
+            hovertext=planet_text,
+            hoverinfo='text',
+            showlegend=False
+        ))
         
-        # Zobraz SVG kruh
-        st.markdown(svg_content, unsafe_allow_html=True)
+        # Nastav layout
+        fig.update_layout(
+            title="Astrologický kruh - Pozice planet",
+            xaxis=dict(range=[-1.2, 1.2], showgrid=False, zeroline=False, 
+                      showticklabels=False, scaleanchor="y", scaleratio=1),
+            yaxis=dict(range=[-1.2, 1.2], showgrid=False, zeroline=False, 
+                      showticklabels=False),
+            plot_bgcolor='white',
+            width=500, height=500,
+            margin=dict(l=20, r=20, t=50, b=20)
+        )
         
+        # Zobraz graf
+        st.plotly_chart(fig, use_container_width=True)
+        
+    except ImportError:
+        st.warning("⚠️ Plotly není dostupný. Zobrazuji textovou reprezentaci.")
+        display_text_chart(planet_data)
     except Exception as e:
-        st.error(f"Chyba při vytváření SVG kruhu: {e}")
+        st.error(f"Chyba při vytváření Plotly kruhu: {e}")
+        display_text_chart(planet_data)
     
     # Textová reprezentace pod kruhem
     display_text_chart(planet_data)
