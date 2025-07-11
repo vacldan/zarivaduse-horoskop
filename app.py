@@ -181,7 +181,6 @@ def create_chart_visualization(planet_data):
     
     st.subheader("🔮 Astrologický kruh")
     
-    # Jednoduchá vizualizace pomocí emoji a barev
     try:
         if isinstance(planet_data, dict) and "planet_position" in planet_data:
             planets_list = planet_data["planet_position"]
@@ -192,30 +191,78 @@ def create_chart_visualization(planet_data):
         # Symboly planet
         symbols = {"Sun": "☉", "Moon": "☽", "Mercury": "☿", "Venus": "♀", 
                   "Mars": "♂", "Jupiter": "♃", "Saturn": "♄", "Uranus": "♅",
-                  "Neptune": "♆", "Pluto": "♇", "Ascendant": "🔼", "Rahu": "☊", "Ketu": "☋"}
+                  "Neptune": "♆", "Pluto": "♇", "Ascendant": "ASC", "Rahu": "☊", "Ketu": "☋"}
         
-        # Znamení kruhu s emoji
-        zodiac_info = {
-            "Aries": {"emoji": "♈", "element": "🔥", "color": "#FF6B6B"},
-            "Taurus": {"emoji": "♉", "element": "🌍", "color": "#4ECDC4"},
-            "Gemini": {"emoji": "♊", "element": "💨", "color": "#45B7D1"},
-            "Cancer": {"emoji": "♋", "element": "💧", "color": "#96CEB4"},
-            "Leo": {"emoji": "♌", "element": "🔥", "color": "#FFEAA7"},
-            "Virgo": {"emoji": "♍", "element": "🌍", "color": "#DDA0DD"},
-            "Libra": {"emoji": "♎", "element": "💨", "color": "#98D8C8"},
-            "Scorpio": {"emoji": "♏", "element": "💧", "color": "#F7DC6F"},
-            "Sagittarius": {"emoji": "♐", "element": "🔥", "color": "#BB8FCE"},
-            "Capricorn": {"emoji": "♑", "element": "🌍", "color": "#85C1E9"},
-            "Aquarius": {"emoji": "♒", "element": "💨", "color": "#F8C471"},
-            "Pisces": {"emoji": "♓", "element": "💧", "color": "#82E0AA"}
+        # Barvy planet
+        planet_colors = {
+            "Sun": "#FFD700", "Moon": "#C0C0C0", "Mercury": "#FFA500", "Venus": "#FF69B4", 
+            "Mars": "#FF4500", "Jupiter": "#8A2BE2", "Saturn": "#2F4F4F", 
+            "Uranus": "#4FD0E3", "Neptune": "#4169E1", "Pluto": "#8B4513",
+            "Ascendant": "#000000", "Rahu": "#708090", "Ketu": "#696969"
         }
+        
+        # Znamení kruhu
+        zodiac_signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+                       "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
         
         # Ayanamsa pro konverzi
         ayanamsa_1988 = 23.9
+        center_x, center_y = 200, 200
+        radius = 150
         
-        # Seskupení planet podle znamení
-        signs_with_planets = {}
+        # Začátek SVG kruhu
+        svg_content = f'''
+        <div style="display: flex; justify-content: center; margin: 20px 0;">
+            <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+                <!-- Vnější kruh -->
+                <circle cx="{center_x}" cy="{center_y}" r="{radius}" 
+                        fill="none" stroke="#333" stroke-width="3"/>
+                
+                <!-- Vnitřní kruh -->
+                <circle cx="{center_x}" cy="{center_y}" r="{radius-30}" 
+                        fill="none" stroke="#ccc" stroke-width="1"/>
+        '''
         
+        # Přidej dělící čáry pro znamení (každých 30°)
+        for i in range(12):
+            angle_deg = i * 30 - 90  # Start v Aries (nahoře)
+            angle_rad = math.radians(angle_deg)
+            x1 = center_x + (radius-30) * math.cos(angle_rad)
+            y1 = center_y + (radius-30) * math.sin(angle_rad)
+            x2 = center_x + radius * math.cos(angle_rad)
+            y2 = center_y + radius * math.sin(angle_rad)
+            
+            svg_content += f'''
+                <line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" 
+                      stroke="#ddd" stroke-width="1"/>
+            '''
+        
+        # Přidej názvy znamení
+        for i, sign in enumerate(zodiac_signs):
+            angle_deg = i * 30 + 15 - 90  # Střed každého znamení
+            angle_rad = math.radians(angle_deg)
+            x = center_x + (radius - 15) * math.cos(angle_rad)
+            y = center_y + (radius - 15) * math.sin(angle_rad)
+            
+            svg_content += f'''
+                <text x="{x}" y="{y}" text-anchor="middle" 
+                      font-family="Arial, sans-serif" font-size="11" font-weight="bold" 
+                      fill="#2c3e50">{sign[:3]}</text>
+            '''
+        
+        # Přidej stupně (0°, 30°, 60°, ...)
+        for deg in range(0, 360, 30):
+            angle_rad = math.radians(deg - 90)
+            x = center_x + (radius + 15) * math.cos(angle_rad)
+            y = center_y + (radius + 15) * math.sin(angle_rad)
+            
+            svg_content += f'''
+                <text x="{x}" y="{y}" text-anchor="middle" 
+                      font-family="Arial, sans-serif" font-size="9" 
+                      fill="#666">{deg}°</text>
+            '''
+        
+        # Přidej planety
         for planet in planets_list:
             if isinstance(planet, dict):
                 name = planet.get("name", "")
@@ -226,56 +273,48 @@ def create_chart_visualization(planet_data):
                 if tropical_longitude >= 360:
                     tropical_longitude -= 360
                 
-                sign_index = int(tropical_longitude // 30)
-                zodiac_signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-                               "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+                # Pozice planety na kruhu
+                angle_rad = math.radians(tropical_longitude - 90)  # -90 pro start v Aries
+                planet_radius = radius - 50
+                x = center_x + planet_radius * math.cos(angle_rad)
+                y = center_y + planet_radius * math.sin(angle_rad)
                 
-                if 0 <= sign_index < 12:
-                    sign = zodiac_signs[sign_index]
+                symbol = symbols.get(name, name[:3])
+                color = planet_colors.get(name, "#333333")
+                
+                # Kruh planety
+                svg_content += f'''
+                    <circle cx="{x}" cy="{y}" r="12" 
+                            fill="{color}" stroke="white" stroke-width="2"/>
+                    <text x="{x}" y="{y+4}" text-anchor="middle" 
+                          font-family="Arial, sans-serif" font-size="10" font-weight="bold" 
+                          fill="white">{symbol}</text>
+                '''
+                
+                # Přidej stupně pro důležité planety
+                if name in ["Sun", "Moon", "Ascendant"]:
                     degree = tropical_longitude % 30
-                    
-                    if sign not in signs_with_planets:
-                        signs_with_planets[sign] = []
-                    
-                    planet_symbol = symbols.get(name, name[:3])
-                    signs_with_planets[sign].append(f"{planet_symbol} {name} ({degree:.0f}°)")
+                    degree_x = center_x + (planet_radius - 25) * math.cos(angle_rad)
+                    degree_y = center_y + (planet_radius - 25) * math.sin(angle_rad)
+                    svg_content += f'''
+                        <text x="{degree_x}" y="{degree_y}" text-anchor="middle" 
+                              font-family="Arial, sans-serif" font-size="8" 
+                              fill="#666">{degree:.0f}°</text>
+                    '''
         
-        # Krásné zobrazení ve 4 řadách po 3 znameních
-        st.markdown("### 🌟 Astrologický kruh - rozložení planet")
+        # Uzavři SVG
+        svg_content += '''
+            </svg>
+        </div>
+        '''
         
-        for row in range(4):
-            cols = st.columns(3)
-            for col_idx in range(3):
-                sign_idx = row * 3 + col_idx
-                if sign_idx < 12:
-                    zodiac_signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-                                   "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
-                    sign = zodiac_signs[sign_idx]
-                    info = zodiac_info[sign]
-                    
-                    with cols[col_idx]:
-                        # Hlavička znamení
-                        st.markdown(f"""
-                        <div style="text-align: center; padding: 10px; margin: 5px; 
-                                   background: linear-gradient(135deg, {info['color']}22, {info['color']}44);
-                                   border-radius: 10px; border: 2px solid {info['color']};">
-                            <h4 style="margin: 0; color: #2c3e50;">
-                                {info['emoji']} {sign} {info['element']}
-                            </h4>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Planety v znamení
-                        if sign in signs_with_planets:
-                            for planet_info in signs_with_planets[sign]:
-                                st.write(f"🪐 {planet_info}")
-                        else:
-                            st.write("_prázdné_")
+        # Zobraz SVG kruh
+        st.markdown(svg_content, unsafe_allow_html=True)
         
     except Exception as e:
-        st.error(f"Chyba při vytváření vizualizace: {e}")
+        st.error(f"Chyba při vytváření SVG kruhu: {e}")
     
-    # Textová reprezentace
+    # Textová reprezentace pod kruhem
     display_text_chart(planet_data)
 
 def display_text_chart(planet_data):
