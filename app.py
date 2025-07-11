@@ -235,25 +235,30 @@ def create_chart_visualization(planet_data):
                     })
         
         # ASCII kruh representation
-        st.markdown("```")
-        ascii_art = """
-                    ♈ Aries
-               ♓           ♉
-           Pisces         Taurus
-        ♒                     ♊
-      Aquarius             Gemini
+        st.markdown("### 🌟 Vizualizace astrologického kruhu")
         
-    ♑                         ♋
-  Capricorn    🔮 KRUH 🔮    Cancer
-    
-        ♐                     ♌
-      Sagittarius            Leo
-        ♏                     ♍
-           Scorpio         Virgo
-               ♎           
-                   Libra
-        """
-        st.markdown("```")
+        # Jednoduchý vizuální kruh pomocí emoji
+        st.markdown("""
+        <div style="text-align: center; font-family: monospace; line-height: 1.8; font-size: 14px;">
+        <br>
+                        ♈ Aries<br>
+                   ♓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♉<br>
+               Pisces &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Taurus<br>
+            ♒ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♊<br>
+          Aquarius &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gemini<br>
+        <br>
+        ♑ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♋<br>
+      Capricorn &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 🔮 KRUH 🔮 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Cancer<br>
+        <br>
+            ♐ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♌<br>
+          Sagittarius &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Leo<br>
+            ♏ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♍<br>
+               Scorpio &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Virgo<br>
+                   ♎ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                        Libra<br>
+        <br>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Detailní rozložení planet po znameních
         st.markdown("### 🌟 Planety ve znameních")
