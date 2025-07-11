@@ -264,7 +264,7 @@ def create_chart_visualization(planet_data):
                     planet_symbol = symbols.get(name, name[:3])
                     signs_with_planets_visual[sign].append(planet_symbol)
         
-        # Jednoduchá a funkční vizualizace kruhu pomocí čistého Streamlit
+        # Vylepšená vizualizace s krásnými kartami a barvami
         st.markdown("### 🌟 Astrologický kruh")
         
         # Připrav data pro každé znamení
@@ -272,79 +272,164 @@ def create_chart_visualization(planet_data):
         zodiac_order = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
                        "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
         
+        # Barvy pro znamení
+        sign_colors = {
+            "Aries": "#FF6B6B", "Taurus": "#4ECDC4", "Gemini": "#45B7D1", 
+            "Cancer": "#96CEB4", "Leo": "#FFEAA7", "Virgo": "#DDA0DD",
+            "Libra": "#98D8C8", "Scorpio": "#F7DC6F", "Sagittarius": "#BB8FCE", 
+            "Capricorn": "#85C1E9", "Aquarius": "#F8C471", "Pisces": "#82E0AA"
+        }
+        
         for sign in zodiac_order:
             zodiac_data[sign] = {
                 'emoji': zodiac_info[sign],
-                'planets': signs_with_planets_visual.get(sign, [])
+                'planets': signs_with_planets_visual.get(sign, []),
+                'color': sign_colors[sign]
             }
         
-        # Vytvoř kruh pomocí streamlit layout - 3x3 mřížka
-        st.markdown("---")
+        # Funkce pro vytvoření krásné karty znamení
+        def create_sign_card(sign_name, sign_data):
+            planets_display = ""
+            if sign_data['planets']:
+                planets_str = " ".join(sign_data['planets'])
+                planets_display = f"<div style='margin-top: 8px; color: #FFD700; font-size: 16px; font-weight: bold;'>{planets_str}</div>"
+            
+            return f"""
+            <div style="
+                background: linear-gradient(135deg, {sign_data['color']}22, {sign_data['color']}44);
+                border: 2px solid {sign_data['color']};
+                border-radius: 15px;
+                padding: 15px;
+                text-align: center;
+                margin: 5px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                min-height: 80px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            ">
+                <div style="font-size: 24px; margin-bottom: 5px;">{sign_data['emoji']}</div>
+                <div style="font-weight: bold; color: #2c3e50; font-size: 14px;">{sign_name}</div>
+                {planets_display}
+            </div>
+            """
         
-        # Horní řada (Pisces, Aries, Taurus)
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"**{zodiac_data['Pisces']['emoji']} Pisces**")
-            if zodiac_data['Pisces']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Pisces']['planets'])}")
-        with col2:
-            st.markdown(f"**{zodiac_data['Aries']['emoji']} Aries**")
-            if zodiac_data['Aries']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Aries']['planets'])}")
-        with col3:
-            st.markdown(f"**{zodiac_data['Taurus']['emoji']} Taurus**")
-            if zodiac_data['Taurus']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Taurus']['planets'])}")
+        # Kruhové uspořádání pomocí HTML layout
+        circle_html = f"""
+        <div style="display: flex; justify-content: center; margin: 20px 0;">
+            <div style="position: relative; width: 400px; height: 400px;">
+                
+                <!-- Horní řada -->
+                <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 80px;">
+                    {create_sign_card("Aries", zodiac_data['Aries'])}
+                </div>
+                
+                <!-- Pravá horní -->
+                <div style="position: absolute; top: 30px; right: 30px; width: 80px;">
+                    {create_sign_card("Taurus", zodiac_data['Taurus'])}
+                </div>
+                
+                <!-- Pravá -->
+                <div style="position: absolute; top: 50%; right: 0; transform: translateY(-50%); width: 80px;">
+                    {create_sign_card("Gemini", zodiac_data['Gemini'])}
+                </div>
+                
+                <!-- Pravá dolní -->
+                <div style="position: absolute; bottom: 30px; right: 30px; width: 80px;">
+                    {create_sign_card("Cancer", zodiac_data['Cancer'])}
+                </div>
+                
+                <!-- Dolní pravá -->
+                <div style="position: absolute; bottom: 0; right: 110px; width: 80px;">
+                    {create_sign_card("Leo", zodiac_data['Leo'])}
+                </div>
+                
+                <!-- Dolní -->
+                <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px;">
+                    {create_sign_card("Virgo", zodiac_data['Virgo'])}
+                </div>
+                
+                <!-- Dolní levá -->
+                <div style="position: absolute; bottom: 0; left: 110px; width: 80px;">
+                    {create_sign_card("Libra", zodiac_data['Libra'])}
+                </div>
+                
+                <!-- Levá dolní -->
+                <div style="position: absolute; bottom: 30px; left: 30px; width: 80px;">
+                    {create_sign_card("Scorpio", zodiac_data['Scorpio'])}
+                </div>
+                
+                <!-- Levá -->
+                <div style="position: absolute; top: 50%; left: 0; transform: translateY(-50%); width: 80px;">
+                    {create_sign_card("Sagittarius", zodiac_data['Sagittarius'])}
+                </div>
+                
+                <!-- Levá horní -->
+                <div style="position: absolute; top: 30px; left: 30px; width: 80px;">
+                    {create_sign_card("Capricorn", zodiac_data['Capricorn'])}
+                </div>
+                
+                <!-- Horní levá -->
+                <div style="position: absolute; top: 0; left: 110px; width: 80px;">
+                    {create_sign_card("Aquarius", zodiac_data['Aquarius'])}
+                </div>
+                
+                <!-- Horní pravá -->
+                <div style="position: absolute; top: 0; right: 110px; width: 80px;">
+                    {create_sign_card("Pisces", zodiac_data['Pisces'])}
+                </div>
+                
+                <!-- Střed kruhu -->
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                           width: 120px; height: 120px; 
+                           background: linear-gradient(135deg, #667eea, #764ba2);
+                           border-radius: 50%; 
+                           display: flex; align-items: center; justify-content: center; 
+                           color: white; font-weight: bold; text-align: center;
+                           box-shadow: 0 8px 16px rgba(0,0,0,0.2);">
+                    <div>
+                        <div style="font-size: 24px;">🔮</div>
+                        <div style="font-size: 14px; margin-top: 5px;">ASTRO<br>KRUH</div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        """
         
-        # Střední řada (Aquarius, KRUH, Gemini)
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"**{zodiac_data['Aquarius']['emoji']} Aquarius**")
-            if zodiac_data['Aquarius']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Aquarius']['planets'])}")
-        with col2:
-            st.markdown("### 🔮")
-            st.markdown("**KRUH**")
-        with col3:
-            st.markdown(f"**{zodiac_data['Gemini']['emoji']} Gemini**")
-            if zodiac_data['Gemini']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Gemini']['planets'])}")
+        # Zobrazení kruhu
+        st.markdown(circle_html, unsafe_allow_html=True)
         
-        # Dolní řada (Capricorn, Sagittarius, Cancer)
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"**{zodiac_data['Capricorn']['emoji']} Capricorn**")
-            if zodiac_data['Capricorn']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Capricorn']['planets'])}")
-        with col2:
-            st.markdown(f"**{zodiac_data['Sagittarius']['emoji']} Sagittarius**")
-            if zodiac_data['Sagittarius']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Sagittarius']['planets'])}")
-        with col3:
-            st.markdown(f"**{zodiac_data['Cancer']['emoji']} Cancer**")
-            if zodiac_data['Cancer']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Cancer']['planets'])}")
+        # Pokud HTML nefunguje, fallback na grid layout
+        st.markdown("### 📊 Přehled znamení (fallback)")
         
-        # Čtvrtá řada (Leo, Virgo, Libra, Scorpio)
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown(f"**{zodiac_data['Leo']['emoji']} Leo**")
-            if zodiac_data['Leo']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Leo']['planets'])}")
-        with col2:
-            st.markdown(f"**{zodiac_data['Virgo']['emoji']} Virgo**")
-            if zodiac_data['Virgo']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Virgo']['planets'])}")
-        with col3:
-            st.markdown(f"**{zodiac_data['Libra']['emoji']} Libra**")
-            if zodiac_data['Libra']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Libra']['planets'])}")
-        with col4:
-            st.markdown(f"**{zodiac_data['Scorpio']['emoji']} Scorpio**")
-            if zodiac_data['Scorpio']['planets']:
-                st.markdown(f"🪐 {' '.join(zodiac_data['Scorpio']['planets'])}")
-        
-        st.markdown("---")
+        # Grid layout jako záloha
+        for row in range(3):
+            cols = st.columns(4)
+            for col_idx in range(4):
+                sign_idx = row * 4 + col_idx
+                if sign_idx < 12:
+                    sign = zodiac_order[sign_idx]
+                    with cols[col_idx]:
+                        color = sign_colors[sign]
+                        planets_text = ""
+                        if zodiac_data[sign]['planets']:
+                            planets_text = f"🪐 {' '.join(zodiac_data[sign]['planets'])}"
+                        
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, {color}22, {color}44);
+                            border: 2px solid {color};
+                            border-radius: 10px;
+                            padding: 10px;
+                            text-align: center;
+                            margin: 2px;
+                        ">
+                            <div style="font-size: 20px;">{zodiac_data[sign]['emoji']}</div>
+                            <div style="font-weight: bold; font-size: 12px;">{sign}</div>
+                            <div style="color: #FFD700; font-size: 14px; margin-top: 5px;">{planets_text}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
         
         # Detailní rozložení planet po znameních
         st.markdown("### 🌟 Planety ve znameních")
