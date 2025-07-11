@@ -237,25 +237,55 @@ def create_chart_visualization(planet_data):
         # ASCII kruh representation
         st.markdown("### 🌟 Vizualizace astrologického kruhu")
         
-        # Jednoduchý vizuální kruh pomocí emoji
-        st.markdown("""
-        <div style="text-align: center; font-family: monospace; line-height: 1.8; font-size: 14px;">
+        # Seskupení planet podle znamení pro kruh
+        signs_with_planets_visual = {}
+        
+        for planet in planets_list:
+            if isinstance(planet, dict):
+                name = planet.get("name", "")
+                vedic_longitude = planet.get("longitude", 0)
+                
+                # Konverze na tropickou
+                tropical_longitude = vedic_longitude + ayanamsa_1988
+                if tropical_longitude >= 360:
+                    tropical_longitude -= 360
+                
+                sign_index = int(tropical_longitude // 30)
+                zodiac_signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+                               "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+                
+                if 0 <= sign_index < 12:
+                    sign = zodiac_signs[sign_index]
+                    degree = tropical_longitude % 30
+                    
+                    if sign not in signs_with_planets_visual:
+                        signs_with_planets_visual[sign] = []
+                    
+                    planet_symbol = symbols.get(name, name[:3])
+                    signs_with_planets_visual[sign].append(planet_symbol)
+        
+        # Funkce pro zobrazení znamení s planetami
+        def format_sign_with_planets(sign_name, emoji):
+            if sign_name in signs_with_planets_visual:
+                planets_str = "".join(signs_with_planets_visual[sign_name])
+                return f"{emoji}<br><small>{sign_name}</small><br><span style='color: gold;'>{planets_str}</span>"
+            else:
+                return f"{emoji}<br><small>{sign_name}</small>"
+        
+        # Vizuální kruh s planetami
+        st.markdown(f"""
+        <div style="text-align: center; font-family: Arial, sans-serif; line-height: 1.2; font-size: 13px;">
         <br>
-                        ♈ Aries<br>
-                   ♓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♉<br>
-               Pisces &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Taurus<br>
-            ♒ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♊<br>
-          Aquarius &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gemini<br>
+                        {format_sign_with_planets("Aries", "♈")}<br><br>
+                   {format_sign_with_planets("Pisces", "♓")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Taurus", "♉")}<br><br>
+            {format_sign_with_planets("Aquarius", "♒")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Gemini", "♊")}<br><br>
         <br>
-        ♑ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♋<br>
-      Capricorn &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 🔮 KRUH 🔮 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Cancer<br>
+        {format_sign_with_planets("Capricorn", "♑")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Cancer", "♋")}<br>
+        <br><div style="font-size: 20px;">🔮 KRUH 🔮</div><br>
+        {format_sign_with_planets("Sagittarius", "♐")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Leo", "♌")}<br><br>
         <br>
-            ♐ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♌<br>
-          Sagittarius &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Leo<br>
-            ♏ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ♍<br>
-               Scorpio &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Virgo<br>
-                   ♎ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
-                        Libra<br>
+            {format_sign_with_planets("Scorpio", "♏")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Virgo", "♍")}<br><br>
+                   {format_sign_with_planets("Libra", "♎")}<br>
         <br>
         </div>
         """, unsafe_allow_html=True)
