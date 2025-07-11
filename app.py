@@ -265,28 +265,119 @@ def create_chart_visualization(planet_data):
                     signs_with_planets_visual[sign].append(planet_symbol)
         
         # Funkce pro zobrazení znamení s planetami
-        def format_sign_with_planets(sign_name, emoji):
+        def get_planets_for_sign(sign_name):
             if sign_name in signs_with_planets_visual:
-                planets_str = "".join(signs_with_planets_visual[sign_name])
-                return f"{emoji}<br><small>{sign_name}</small><br><span style='color: gold;'>{planets_str}</span>"
+                planets_str = " ".join(signs_with_planets_visual[sign_name])
+                return f"<div style='color: gold; font-weight: bold;'>{planets_str}</div>"
             else:
-                return f"{emoji}<br><small>{sign_name}</small>"
+                return ""
         
-        # Vizuální kruh s planetami
+        # Skutečný kruhový design pomocí CSS
         st.markdown(f"""
-        <div style="text-align: center; font-family: Arial, sans-serif; line-height: 1.2; font-size: 13px;">
-        <br>
-                        {format_sign_with_planets("Aries", "♈")}<br><br>
-                   {format_sign_with_planets("Pisces", "♓")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Taurus", "♉")}<br><br>
-            {format_sign_with_planets("Aquarius", "♒")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Gemini", "♊")}<br><br>
-        <br>
-        {format_sign_with_planets("Capricorn", "♑")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Cancer", "♋")}<br>
-        <br><div style="font-size: 20px;">🔮 KRUH 🔮</div><br>
-        {format_sign_with_planets("Sagittarius", "♐")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Leo", "♌")}<br><br>
-        <br>
-            {format_sign_with_planets("Scorpio", "♏")} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {format_sign_with_planets("Virgo", "♍")}<br><br>
-                   {format_sign_with_planets("Libra", "♎")}<br>
-        <br>
+        <div style="display: flex; justify-content: center; margin: 30px 0;">
+            <div style="position: relative; width: 320px; height: 320px;">
+                
+                <!-- Aries - 12 o'clock -->
+                <div style="position: absolute; top: 0px; left: 50%; transform: translateX(-50%); text-align: center;">
+                    <div style="font-size: 24px;">♈</div>
+                    <div style="font-size: 10px; margin-top: 2px;">Aries</div>
+                    {get_planets_for_sign("Aries")}
+                </div>
+                
+                <!-- Taurus - 1 o'clock -->
+                <div style="position: absolute; top: 25px; right: 65px; text-align: center;">
+                    <div style="font-size: 20px;">♉</div>
+                    <div style="font-size: 9px;">Taurus</div>
+                    {get_planets_for_sign("Taurus")}
+                </div>
+                
+                <!-- Gemini - 2 o'clock -->
+                <div style="position: absolute; top: 65px; right: 25px; text-align: center;">
+                    <div style="font-size: 20px;">♊</div>
+                    <div style="font-size: 9px;">Gemini</div>
+                    {get_planets_for_sign("Gemini")}
+                </div>
+                
+                <!-- Cancer - 3 o'clock -->
+                <div style="position: absolute; top: 50%; right: 0px; transform: translateY(-50%); text-align: center;">
+                    <div style="font-size: 24px;">♋</div>
+                    <div style="font-size: 10px;">Cancer</div>
+                    {get_planets_for_sign("Cancer")}
+                </div>
+                
+                <!-- Leo - 4 o'clock -->
+                <div style="position: absolute; bottom: 65px; right: 25px; text-align: center;">
+                    <div style="font-size: 20px;">♌</div>
+                    <div style="font-size: 9px;">Leo</div>
+                    {get_planets_for_sign("Leo")}
+                </div>
+                
+                <!-- Virgo - 5 o'clock -->
+                <div style="position: absolute; bottom: 25px; right: 65px; text-align: center;">
+                    <div style="font-size: 20px;">♍</div>
+                    <div style="font-size: 9px;">Virgo</div>
+                    {get_planets_for_sign("Virgo")}
+                </div>
+                
+                <!-- Libra - 6 o'clock -->
+                <div style="position: absolute; bottom: 0px; left: 50%; transform: translateX(-50%); text-align: center;">
+                    <div style="font-size: 24px;">♎</div>
+                    <div style="font-size: 10px;">Libra</div>
+                    {get_planets_for_sign("Libra")}
+                </div>
+                
+                <!-- Scorpio - 7 o'clock -->
+                <div style="position: absolute; bottom: 25px; left: 65px; text-align: center;">
+                    <div style="font-size: 20px;">♏</div>
+                    <div style="font-size: 9px;">Scorpio</div>
+                    {get_planets_for_sign("Scorpio")}
+                </div>
+                
+                <!-- Sagittarius - 8 o'clock -->
+                <div style="position: absolute; bottom: 65px; left: 25px; text-align: center;">
+                    <div style="font-size: 20px;">♐</div>
+                    <div style="font-size: 9px;">Sagittarius</div>
+                    {get_planets_for_sign("Sagittarius")}
+                </div>
+                
+                <!-- Capricorn - 9 o'clock -->
+                <div style="position: absolute; top: 50%; left: 0px; transform: translateY(-50%); text-align: center;">
+                    <div style="font-size: 24px;">♑</div>
+                    <div style="font-size: 10px;">Capricorn</div>
+                    {get_planets_for_sign("Capricorn")}
+                </div>
+                
+                <!-- Aquarius - 10 o'clock -->
+                <div style="position: absolute; top: 65px; left: 25px; text-align: center;">
+                    <div style="font-size: 20px;">♒</div>
+                    <div style="font-size: 9px;">Aquarius</div>
+                    {get_planets_for_sign("Aquarius")}
+                </div>
+                
+                <!-- Pisces - 11 o'clock -->
+                <div style="position: absolute; top: 25px; left: 65px; text-align: center;">
+                    <div style="font-size: 20px;">♓</div>
+                    <div style="font-size: 9px;">Pisces</div>
+                    {get_planets_for_sign("Pisces")}
+                </div>
+                
+                <!-- Střed kruhu -->
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                           width: 100px; height: 100px; border: 2px solid #ccc; border-radius: 50%; 
+                           display: flex; align-items: center; justify-content: center; 
+                           background: linear-gradient(45deg, #f8f9fa, #e9ecef);">
+                    <div style="text-align: center;">
+                        <div style="font-size: 16px;">🔮</div>
+                        <div style="font-size: 12px; color: #666;">KRUH</div>
+                    </div>
+                </div>
+                
+                <!-- Vnější kruh -->
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                           width: 280px; height: 280px; border: 2px solid #333; border-radius: 50%; 
+                           box-shadow: 0 4px 8px rgba(0,0,0,0.1);"></div>
+                
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
