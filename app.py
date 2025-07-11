@@ -264,13 +264,21 @@ def create_chart_visualization(planet_data):
                     planet_symbol = symbols.get(name, name[:3])
                     signs_with_planets_visual[sign].append(planet_symbol)
         
-        # Čisté a elegantní řešení pomocí Streamlit metrics a containers
-        st.markdown("### 🌟 Astrologický kruh")
+        # Designově atraktivní zobrazení bez kruhu
+        st.markdown("### 🌟 Rozložení planet ve znameních")
         
         # Připrav data pro každé znamení
         zodiac_data = {}
         zodiac_order = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
                        "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+        
+        # Elementy a jejich barvy
+        element_info = {
+            "Fire": {"signs": ["Aries", "Leo", "Sagittarius"], "color": "#FF6B6B", "emoji": "🔥"},
+            "Earth": {"signs": ["Taurus", "Virgo", "Capricorn"], "color": "#8B4513", "emoji": "🌍"},
+            "Air": {"signs": ["Gemini", "Libra", "Aquarius"], "color": "#87CEEB", "emoji": "💨"},
+            "Water": {"signs": ["Cancer", "Scorpio", "Pisces"], "color": "#4682B4", "emoji": "💧"}
+        }
         
         for sign in zodiac_order:
             zodiac_data[sign] = {
@@ -278,109 +286,78 @@ def create_chart_visualization(planet_data):
                 'planets': signs_with_planets_visual.get(sign, [])
             }
         
-        # Kruhové uspořádání - řada 1 (horní)
-        st.markdown("#### 🔮 Horní část kruhu")
-        col1, col2, col3, col4 = st.columns(4)
+        # Zobrazení podle elementů
+        for element, info in element_info.items():
+            st.markdown(f"#### {info['emoji']} {element} Signs")
+            
+            cols = st.columns(3)
+            for i, sign in enumerate(info['signs']):
+                with cols[i]:
+                    # Počet planet v znamení
+                    planet_count = len(zodiac_data[sign]['planets'])
+                    planets_str = " ".join(zodiac_data[sign]['planets']) if zodiac_data[sign]['planets'] else "prázdné"
+                    
+                    # Vytvoř kartu znamení
+                    if zodiac_data[sign]['planets']:
+                        st.success(f"**{zodiac_data[sign]['emoji']} {sign}**")
+                        st.write(f"🪐 {planets_str}")
+                        if planet_count > 1:
+                            st.caption(f"✨ {planet_count} planet v tomto znamení")
+                    else:
+                        st.info(f"**{zodiac_data[sign]['emoji']} {sign}**")
+                        st.write("_žádné planety_")
+            
+            st.markdown("---")
         
-        with col1:
-            container = st.container()
-            with container:
-                st.metric(
-                    label=f"{zodiac_data['Aquarius']['emoji']} Aquarius",
-                    value=" ".join(zodiac_data['Aquarius']['planets']) if zodiac_data['Aquarius']['planets'] else "prázdné"
-                )
+        # Přehled nejaktivnějších znamení
+        st.markdown("### 🎯 Nejaktivnější znamení")
         
-        with col2:
-            container = st.container()
-            with container:
-                st.metric(
-                    label=f"{zodiac_data['Pisces']['emoji']} Pisces", 
-                    value=" ".join(zodiac_data['Pisces']['planets']) if zodiac_data['Pisces']['planets'] else "prázdné"
-                )
+        # Seřaď znamení podle počtu planet
+        signs_by_planets = []
+        for sign in zodiac_order:
+            planet_count = len(zodiac_data[sign]['planets'])
+            if planet_count > 0:
+                signs_by_planets.append({
+                    'sign': sign,
+                    'count': planet_count,
+                    'planets': zodiac_data[sign]['planets'],
+                    'emoji': zodiac_data[sign]['emoji']
+                })
         
-        with col3:
-            container = st.container()
-            with container:
-                st.metric(
-                    label=f"{zodiac_data['Aries']['emoji']} Aries",
-                    value=" ".join(zodiac_data['Aries']['planets']) if zodiac_data['Aries']['planets'] else "prázdné"
-                )
+        signs_by_planets.sort(key=lambda x: x['count'], reverse=True)
         
-        with col4:
-            container = st.container()
-            with container:
-                st.metric(
-                    label=f"{zodiac_data['Taurus']['emoji']} Taurus",
-                    value=" ".join(zodiac_data['Taurus']['planets']) if zodiac_data['Taurus']['planets'] else "prázdné"
-                )
+        if signs_by_planets:
+            # Top 3 znamení s nejvíce planetami
+            for i, sign_info in enumerate(signs_by_planets[:3]):
+                if i == 0:
+                    st.success(f"🥇 **{sign_info['emoji']} {sign_info['sign']}** - {sign_info['count']} planet")
+                elif i == 1:
+                    st.warning(f"🥈 **{sign_info['emoji']} {sign_info['sign']}** - {sign_info['count']} planet")
+                elif i == 2:
+                    st.info(f"🥉 **{sign_info['emoji']} {sign_info['sign']}** - {sign_info['count']} planet")
+                
+                # Zobraz planety
+                planets_display = " ".join(sign_info['planets'])
+                st.write(f"   🪐 {planets_display}")
         
-        # Řada 2 (střední)
-        st.markdown("#### ⚖️ Střední část kruhu")
-        col1, col2, col3, col4 = st.columns(4)
+        # Rychlý přehled všech planet
+        st.markdown("### 🪐 Rychlý přehled planet")
         
-        with col1:
-            st.metric(
-                label=f"{zodiac_data['Capricorn']['emoji']} Capricorn",
-                value=" ".join(zodiac_data['Capricorn']['planets']) if zodiac_data['Capricorn']['planets'] else "prázdné"
-            )
+        all_planets = []
+        for sign in zodiac_order:
+            for planet in zodiac_data[sign]['planets']:
+                all_planets.append(f"{planet} in {zodiac_data[sign]['emoji']}{sign}")
         
-        with col2:
-            st.markdown("### 🔮")
-            st.markdown("**ASTRO KRUH**")
-        
-        with col3:
-            st.markdown("### 🌟")
-            st.markdown("**CENTRUM**")
-        
-        with col4:
-            st.metric(
-                label=f"{zodiac_data['Gemini']['emoji']} Gemini",
-                value=" ".join(zodiac_data['Gemini']['planets']) if zodiac_data['Gemini']['planets'] else "prázdné"
-            )
-        
-        # Řada 3 (dolní)
-        st.markdown("#### 🏠 Dolní část kruhu")
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric(
-                label=f"{zodiac_data['Sagittarius']['emoji']} Sagittarius",
-                value=" ".join(zodiac_data['Sagittarius']['planets']) if zodiac_data['Sagittarius']['planets'] else "prázdné"
-            )
-        
-        with col2:
-            st.metric(
-                label=f"{zodiac_data['Scorpio']['emoji']} Scorpio",
-                value=" ".join(zodiac_data['Scorpio']['planets']) if zodiac_data['Scorpio']['planets'] else "prázdné"
-            )
-        
-        with col3:
-            st.metric(
-                label=f"{zodiac_data['Libra']['emoji']} Libra",
-                value=" ".join(zodiac_data['Libra']['planets']) if zodiac_data['Libra']['planets'] else "prázdné"
-            )
-        
-        with col4:
-            st.metric(
-                label=f"{zodiac_data['Virgo']['emoji']} Virgo",
-                value=" ".join(zodiac_data['Virgo']['planets']) if zodiac_data['Virgo']['planets'] else "prázdné"
-            )
-        
-        # Zbývající znamení
-        st.markdown("#### 🌙 Zbývající znamení")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.metric(
-                label=f"{zodiac_data['Leo']['emoji']} Leo",
-                value=" ".join(zodiac_data['Leo']['planets']) if zodiac_data['Leo']['planets'] else "prázdné"
-            )
-        
-        with col2:
-            st.metric(
-                label=f"{zodiac_data['Cancer']['emoji']} Cancer", 
-                value=" ".join(zodiac_data['Cancer']['planets']) if zodiac_data['Cancer']['planets'] else "prázdné"
-            )
+        if all_planets:
+            # Rozdělení do sloupců
+            num_cols = 3
+            cols = st.columns(num_cols)
+            
+            for i, planet_info in enumerate(all_planets):
+                with cols[i % num_cols]:
+                    st.write(f"• {planet_info}")
+        else:
+            st.write("Žádné planety k zobrazení.")
         
         # Detailní rozložení planet po znameních
         st.markdown("### 🌟 Planety ve znameních")
