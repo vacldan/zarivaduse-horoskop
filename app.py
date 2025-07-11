@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from datetime import datetime
+import datetime
 import json
 from urllib.parse import urlencode
 import time
@@ -68,7 +68,7 @@ def call_prokerala_api(endpoint, params):
 def validate_datetime(datum, cas):
     """Validuje datum a čas"""
     try:
-        datetime.strptime(f"{datum} {cas}", "%Y-%m-%d %H:%M")
+        datetime.datetime.strptime(f"{datum} {cas}", "%Y-%m-%d %H:%M")
         return True
     except ValueError:
         return False
@@ -76,7 +76,7 @@ def validate_datetime(datum, cas):
 def format_datetime_for_api(datum, cas, timezone="Europe/Prague"):
     """Formátuje datetime pro API ve správném formátu"""
     try:
-        dt = datetime.strptime(f"{datum} {cas}", "%Y-%m-%d %H:%M")
+        dt = datetime.datetime.strptime(f"{datum} {cas}", "%Y-%m-%d %H:%M")
         return dt.strftime("%Y-%m-%dT%H:%M:%S") + "+01:00"
     except ValueError:
         return None
@@ -711,7 +711,6 @@ if submit:
     # Zkusíme získat pozice planet
     data = call_prokerala_api("/planet-position", api_params)
     if data and "data" in data:
-        st.success("✅ Pozice planet - úspěch!")
         all_data["/planet-position"] = data["data"]
         success_count += 1
     
@@ -722,7 +721,6 @@ if submit:
     # Zkusíme získat detaily narození
     data = call_prokerala_api("/birth-details", api_params)
     if data and "data" in data:
-        st.success("✅ Detaily narození - úspěch!")
         all_data["/birth-details"] = data["data"]
         success_count += 1
     
@@ -732,7 +730,6 @@ if submit:
     # Zkusíme kundli endpoint pro více planet
     data = call_prokerala_api("/kundli", api_params)
     if data and "data" in data:
-        st.success("✅ Kundli data - úspěch!")
         all_data["/kundli"] = data["data"]
         success_count += 1
     
