@@ -5,18 +5,18 @@ import json
 import time
 import numpy as np
 from urllib.parse import urlencode
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator
+import plotly.graph_objects as go
+import pandas as pd
 
 # Konstanty pro API
 PROKERALA_CLIENT_ID = "a299b037-8f17-4973-94ec-2ff6181170c9"
 PROKERALA_CLIENT_SECRET = "uDo6680pyltTVtUI5Wu9q16sHUoeScGTsz5UunYr"
 API_BASE_URL = "https://api.prokerala.com/v2/astrology"
 
-# Geolokační data pro města (zachováno z původní verze)
+# Geolokační data pro města
 geolokace = {
     "Praha": {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
-    # ... ostatní města ...
+    # ... dalších  měst podle potřeby ...
     "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"}
 }
 
@@ -94,7 +94,6 @@ def create_planet_table(planets):
             "House": p.get("position", "N/A"),
             "Motion": "Retrograde" if p.get("is_retrograde", False) else "Direct"
         })
-    import pandas as pd
     df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -104,47 +103,63 @@ def create_chart_visualization(planets):
     if not planets:
         st.info("Vizualizace není dostupná")
         return
-    # Symboly
     symbols = {"Sun":"☉","Moon":"☽","Mercury":"☿","Venus":"♀","Mars":"♂",
                "Jupiter":"♃","Saturn":"♄","Uranus":"♅","Neptune":"♆","Pluto":"♇",
                "Ascendant":"ASC","Rahu":"☊","Ketu":"☋"}
     ayanamsa = 23.9
-    # Připrav úhly (radyány) a štítky
-    angles = []
-    labels = []
+    thetas, labels = [], []
     for p in planets:
-        lon = (p.get("longitude", 0) + ayanamsa) % 360
-        rad = np.deg2rad(90 - lon)
-        angles.append(rad)
+        lon = (p.get("longitude",0) + ayanamsa) % 360
+        thetas.append(lon)
         labels.append(symbols.get(p['name'], p['name']))
-    # Vykresli polar plot
-    fig = plt.figure(figsize=(6, 6))
-    ax = fig.add_subplot(111, polar=True)
-    ax.set_theta_zero_location('N')  # 0° nahoře
-    ax.set_theta_direction(-1)       # hodinově
-    ax.set_rmax(1)
-    ax.set_rticks([])                # žádné radiální čárky
-    # Hlavní úhlové čárky každých 30° s glyphy
-    degs = np.arange(0, 360, 30)
-    ax.set_xticks(np.deg2rad(degs))
-    glyphs = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"]
-    ax.set_xticklabels(glyphs, fontsize=16)
-    # Minor ticks každým stupněm
-    ax.xaxis.set_minor_locator(MultipleLocator(np.deg2rad(1)))
-    ax.tick_params(which='minor', length=4)
-    ax.tick_params(which='major', length=10)
-    # Vykresli planety
-    for ang, lab in zip(angles, labels):
-        ax.text(ang, 0.85, lab, fontsize=18, ha='center', va='center')
-    # Zobraz v Streamlitu
-    st.pyplot(fig)
+
+    fig = go.Figure()
+    # Segmenty znamení
+    for i, glyph in enumerate(["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"]):
+        angle = i*30
+        fig.add_shape(
+            type="line",
+            x0=0.5, y0=0.5,
+            x1=0.5 + 0.45*np.cos(np.deg2rad(angle)),
+            y1=0.5 + 0.45*np.sin(np.deg2rad(angle)),
+            line=dict(width=1)
+        )
+        # popisek znamení
+        fig.add_annotation(
+            x=0.5 + 0.53*np.cos(np.deg2rad(angle+15)),
+            y=0.5 + 0.53*np.sin(np.deg2rad(angle+15)),
+            text=glyph,
+            showarrow=False,
+            font=dict(size=18)
+        )
+    # Planety
+    fig.add_trace(go.Scatterpolar(
+        r=[1]*len(thetas),
+        theta=thetas,
+        mode="text",
+        text=labels,
+        textfont=dict(size=18),
+        hoverinfo="text",
+        hovertext=[f"{labels[i]}: {thetas[i]:.1f}°" for i in range(len(thetas))]
+    ))
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=False),
+            angularaxis=dict(rotation=90, direction="clockwise", showticklabels=False)
+        ),
+        showlegend=False,
+        margin=dict(l=0, r=0, t=0, b=0),
+        width=600,
+        height=600
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def display_horoscope_results(data):
     planets = data.get('/planet-position', [])
     create_planet_table(planets)
     create_chart_visualization(planets)
-    # ... můžeš přidat display_houses, display_aspects ...
+    # případně další sekce (domy, aspekty)
 
 # Streamlit UI
 st.set_page_config(page_title="Zářivá duše • Astrologický horoskop", layout="centered")
@@ -162,18 +177,18 @@ if submit:
     if not validate_datetime(datum, cas):
         st.error("Špatný formát data nebo času.")
         st.stop()
-    pozice = geolokace[mesto]
+    poz = geolokace[mesto]
     dt = format_datetime_for_api(datum, cas)
     if not dt:
-        st.error("Chyba formátování data a času.")
+        st.error("Chyba při formátování.")
         st.stop()
     params = {
         "datetime": dt,
-        "coordinates": f"{pozice['latitude']},{pozice['longitude']}",
+        "coordinates": f"{poz['latitude']},{poz['longitude']}",
         "ayanamsa": 1,
         "house_system": "placidus",
         "orb": "default",
-        "timezone": pozice['timezone']
+        "timezone": poz['timezone']
     }
     all_data = {}
     for ep in ["/planet-position", "/birth-details", "/kundli"]:
@@ -187,7 +202,6 @@ if submit:
         st.error("Nepodařilo se získat astrologická data.")
 
 st.markdown(
-    '<div style="text-align:center;font-size:0.9em;margin-top:2em;">'
-    'Powered by <a href="https://developer.prokerala.com/" target="_blank">Prokerala Astrology API</a>'
-    '</div>', unsafe_allow_html=True
+    '<div style="text-align:center;font-size:0.9em;margin-top:2em;">Powered by <a href="https://developer.prokerala.com/" target="_blank">Prokerala Astrology API</a></div>',
+    unsafe_allow_html=True
 )
