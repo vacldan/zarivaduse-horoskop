@@ -15,9 +15,10 @@ API_BASE_URL = "https://api.prokerala.com/v2/astrology"
 # Geolokační data pro města
 geolokace = {
     "Praha": {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
-    "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
-    # ... příp. doplň další města ...
+    "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"}
+    # ... další města dle potřeby ...
 }
+
 
 def get_access_token():
     url = "https://api.prokerala.com/token"
@@ -34,6 +35,7 @@ def get_access_token():
         st.error(f"Chyba získání tokenu: {e}")
         return None
 
+
 def call_prokerala_api(endpoint, params):
     token = get_access_token()
     if not token:
@@ -48,12 +50,14 @@ def call_prokerala_api(endpoint, params):
         st.error(f"Chyba API: {e}")
         return None
 
+
 def validate_datetime(date_str, time_str):
     try:
         datetime.datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
         return True
     except ValueError:
         return False
+
 
 def format_datetime_for_api(date_str, time_str):
     try:
@@ -62,10 +66,16 @@ def format_datetime_for_api(date_str, time_str):
     except ValueError:
         return None
 
+
 def create_planet_table(planets):
     st.subheader("📋 Tabulka planet")
-    if not planets:
-        st.error("Žádná data planet")
+    # Podpora dict nebo list
+    if isinstance(planets, dict) and "planet_position" in planets:
+        planet_list = planets["planet_position"]
+    elif isinstance(planets, list):
+        planet_list = planets
+    else:
+        st.error("Neočekávaná struktura dat planet.")
         return
     symbols = {
         "Sun":"☉","Moon":"☽","Mercury":"☿","Venus":"♀","Mars":"♂",
@@ -76,7 +86,7 @@ def create_planet_table(planets):
               "Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"]
     ayanamsa = 23.9
     rows = []
-    for p in planets:
+    for p in planet_list:
         lon = (p.get("longitude", 0) + ayanamsa) % 360
         idx = int(lon // 30)
         sign = zodiac[idx]
@@ -93,9 +103,15 @@ def create_planet_table(planets):
     df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=True, hide_index=True)
 
+
 def create_svg_chart(planets):
     st.subheader("🔮 Astrologické kolo")
-    if not planets:
+    # Podpora dict nebo list
+    if isinstance(planets, dict) and "planet_position" in planets:
+        planet_list = planets["planet_position"]
+    elif isinstance(planets, list):
+        planet_list = planets
+    else:
         st.info("Žádné astronomické souřadnice k zobrazení.")
         return
     size = 400
@@ -107,20 +123,23 @@ def create_svg_chart(planets):
         "Jupiter":"♃","Saturn":"♄","Uranus":"♅","Neptune":"♆","Pluto":"♇",
         "Ascendant":"A","Rahu":"☊","Ketu":"☋"
     }
-    svg = [f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg">']
-    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" stroke="black" stroke-width="2" fill="none"/>')
     glyphs = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"]
+    svg = [f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg">']
+    # Kruh
+    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" stroke="black" stroke-width="2" fill="none"/>')
+    # Segmenty a glyphy
     for i in range(12):
         ang = math.radians(90 - i*30)
         x2 = cx + r * math.cos(ang)
         y2 = cy - r * math.sin(ang)
         svg.append(f'<line x1="{cx}" y1="{cy}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="black" stroke-width="1"/>')
-        angg = math.radians(90 - (i*30 +15))
+        angg = math.radians(90 - (i*30 + 15))
         gx = cx + (r+20) * math.cos(angg)
         gy = cy - (r+20) * math.sin(angg)
         svg.append(f'<text x="{gx:.1f}" y="{gy:.1f}" font-size="16" text-anchor="middle" alignment-baseline="middle">{glyphs[i]}</text>')
-    for p in planets:
-        lon = (p.get("longitude",0) + ay) % 360
+    # Planety
+    for p in planet_list:
+        lon = (p.get("longitude", 0) + ay) % 360
         ang = math.radians(90 - lon)
         px = cx + r * 0.75 * math.cos(ang)
         py = cy - r * 0.75 * math.sin(ang)
@@ -128,6 +147,7 @@ def create_svg_chart(planets):
         svg.append(f'<text x="{px:.1f}" y="{py:.1f}" font-size="18" text-anchor="middle" alignment-baseline="middle">{sym}</text>')
     svg.append('</svg>')
     st.markdown(f"""<div style='display:flex;justify-content:center;'>{''.join(svg)}</div>""", unsafe_allow_html=True)
+
 
 def display_horoscope_results(data):
     planets = data.get('/planet-position', [])
@@ -140,10 +160,9 @@ st.markdown("""
 <h1 style='text-align:center;color:#33cfcf;'>Zářivá duše • Astrologický horoskop</h1>
 <h3 style='text-align:center;color:#33cfcf;'>Vaše hvězdná mapa narození</h3>
 """, unsafe_allow_html=True)
-
 with st.form("astro_form"):
     datum = st.text_input("Datum narození (YYYY-MM-DD)", "1990-01-01")
-    cas   = st.text_input("Čas narození (HH:MM)", "12:00")
+    cas = st.text_input("Čas narození (HH:MM)", "12:00")
     mesto = st.selectbox("Město narození", list(geolokace.keys()))
     submit = st.form_submit_button("Vypočítat horoskop")
 
@@ -157,12 +176,12 @@ if submit:
         st.error("Chyba při formátování.")
         st.stop()
     params = {
-        "datetime":    dt,
+        "datetime": dt,
         "coordinates": f"{poz['latitude']},{poz['longitude']}",
-        "ayanamsa":    1,
-        "house_system":"placidus",
-        "orb":         "default",
-        "timezone":    poz['timezone']
+        "ayanamsa": 1,
+        "house_system": "placidus",
+        "orb": "default",
+        "timezone": poz['timezone']
     }
     all_data = {}
     for ep in ["/planet-position","/birth-details","/kundli"]:
