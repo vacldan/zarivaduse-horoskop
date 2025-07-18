@@ -166,11 +166,34 @@ st.markdown(
     unsafe_allow_html=True
 )
 with st.form("astro_form"):
-    datum=st.text_input("Datum narození (YYYY-MM-DD)","1990-01-01")
-    cas=st.text_input("Čas narození (HH:MM)","12:00")
-    mesto=st.selectbox("Město narození",list(geolocations.keys()))
-    submit=st.form_submit_button("Vypočítat horoskop")
+    datum = st.text_input("Datum narození (YYYY-MM-DD)", "1990-01-01")
+    cas = st.text_input("Čas narození (HH:MM)", "12:00")
+    mesto = st.selectbox("Město narození", list(geolocations.keys()))
+    submit = st.form_submit_button("Vypočítat horoskop")
+
 if submit:
+    try:
+        if not validate_datetime(datum, cas):
+            raise ValueError("Špatný formát data nebo času.")
+        poz = geolocations[mesto]
+        dt = format_datetime_for_api(datum, cas)
+        params = {
+            "datetime": dt,
+            "coordinates": f"{poz['latitude']},{poz['longitude']}",
+            "ayanamsa": 1,
+            "house_system": "placidus",
+            "orb": "default",
+            "timezone": poz['timezone']
+        }
+        # Pouze planet-position
+        planets = fetch_data("/planet-position", params)
+        if planets is None:
+            st.error("Chyba 403: Přístup odepřen. Zkontrolujte údaje.")
+            st.stop()
+        display_horoscope_results(planets)
+    except Exception as e:
+        st.error(f"Chyba: {e}")
+        st.text(traceback.format_exc())
     try:
         if not validate_datetime(datum,cas):
             raise ValueError("Špatný formát data nebo času.")
