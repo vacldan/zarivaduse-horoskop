@@ -85,7 +85,6 @@ def format_datetime_for_api(d, t):
 
 def create_planet_table(planets):
     st.subheader("📋 Tabulka planet")
-    # podporuje dict/list
     if isinstance(planets, dict) and "planet_position" in planets:
         pl = planets["planet_position"]
     elif isinstance(planets, list):
@@ -114,7 +113,6 @@ def create_planet_table(planets):
 
 def create_svg_chart(planets):
     st.subheader("🔮 Astrologické kolo")
-    # podporuje dict/list
     if isinstance(planets, dict) and "planet_position" in planets:
         pl = planets["planet_position"]
     elif isinstance(planets, list):
@@ -127,7 +125,7 @@ def create_svg_chart(planets):
     r_outer = size * 0.45
     r_inner = r_outer * 0.9
     ay = 23.9
-    svg = [f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg" style="background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.15)">']
+    svg = [f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg" style="background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.15)"'>]
     # vykresli segmenty s barvou elementů
     for i, sign in enumerate(zodiac):
         start = math.radians(90 - i * 30)
@@ -137,18 +135,18 @@ def create_svg_chart(planets):
         x2 = cx + r_outer * math.cos(end)
         y2 = cy - r_outer * math.sin(end)
         col = element_colors.get(sign, "#f0f0f0")
-        path = (f"M{cx},{cy} L{x1:.1f},{y1:.1f} A{r_outer},{r_outer} 0 0,1 {x2:.1f},{y2:.1f} Z")
+        path = f"M{cx},{cy} L{x1:.1f},{y1:.1f} A{r_outer},{r_outer} 0 0,1 {x2:.1f},{y2:.1f} Z"
         svg.append(f'<path d="{path}" fill="{col}" stroke="none"/>')
-    # kruh obrysu
+    # obrys
     svg.append(f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" stroke="#888" stroke-width="2" fill="none"/>')
-    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" stroke="#ccc" stroke-width="1" fill="none"/>")
+    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" stroke="#ccc" stroke-width="1" fill="none"/>')
     # glyphy znamení
     for i, g in enumerate(glyphs):
         angle = math.radians(90 - (i * 30 + 15))
         gx = cx + (r_outer + 20) * math.cos(angle)
         gy = cy - (r_outer + 20) * math.sin(angle)
         svg.append(f'<text x="{gx:.1f}" y="{gy:.1f}" font-size="18" text-anchor="middle" fill="#444" alignment-baseline="middle">{g}</text>')
-    # planety: kolečko + symbol
+    # planety
     for p in pl:
         lon = (p.get("longitude", 0) + ay) % 360
         ang = math.radians(90 - lon)
