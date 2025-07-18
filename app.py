@@ -160,7 +160,11 @@ def display_horoscope_results(data):
 
 # UI
 st.set_page_config(page_title="Zářivá duše • Astrologický horoskop", layout="centered")
-st.markdown('<h1 style="text-align:center;color:#33cfcf;">Zářivá duše • Astrologický horoskop</h1><h3 style="text-align:center;color:#33cfcf;">Vaše hvězdná mapa narození</h3>', unsafe_allow_html=True)
+st.markdown(
+    '<h1 style="text-align:center;color:#33cfcf;">Zářivá duše • Astrologický horoskop</h1>'
+    '<h3 style="text-align:center;color:#33cfcf;">Vaše hvězdná mapa narození</h3>',
+    unsafe_allow_html=True
+)
 with st.form("astro_form"):
     datum=st.text_input("Datum narození (YYYY-MM-DD)","1990-01-01")
     cas=st.text_input("Čas narození (HH:MM)","12:00")
@@ -168,18 +172,29 @@ with st.form("astro_form"):
     submit=st.form_submit_button("Vypočítat horoskop")
 if submit:
     try:
-        if not validate_datetime(datum,cas): raise ValueError("Špatný formát data nebo času.")
+        if not validate_datetime(datum,cas):
+            raise ValueError("Špatný formát data nebo času.")
         poz=geolocations[mesto]
         dt=format_datetime_for_api(datum,cas)
-        params={"datetime":dt,"coordinates":f"{poz['latitude']},{poz['longitude']}","ayanamsa":1,"house_system":"placidus","orb":"default","timezone":poz['timezone']}
-        all_data={}
-        for ep in ["/planet-position","/birth-details","/kundli"]:
-            d=fetch_data(ep,params)
-            if d: all_data= {**all_data, **{ep:d}}
-        if not all_data.get('/planet-position'):
-            raise RuntimeError("Nepodařilo se získat astrologická data.")
-        display_horoscope_results(all_data['/planet-position'])
+        params={
+            "datetime":dt,
+            "coordinates":f"{poz['latitude']},{poz['longitude']}",
+            "ayanamsa":1,
+            "house_system":"placidus",
+            "orb":"default",
+            "timezone":poz['timezone']
+        }
+        # Získáme pouze planet-position pro zobrazení kola
+        planets = fetch_data("/planet-position", params)
+        if planets is None:
+            st.error("Chyba 403: Přístup odepřen. Zkontrolujte klientské údaje a aktivní předplatné.")
+            st.stop()
+        display_horoscope_results(planets)
     except Exception as e:
         st.error(f"Chyba: {e}")
         st.text(traceback.format_exc())
-st.markdown('<div style="text-align:center;font-size:0.9em;margin-top:2em;">Powered by <a href="https://developer.prokerala.com/" target="_blank">Prokerala Astrology API</a></div>',unsafe_allow_html=True)
+
+st.markdown(
+    '<div style="text-align:center;font-size:0.9em;margin-top:2em;">Powered by <a href="https://developer.prokerala.com/" target="_blank">Prokerala Astrology API</a></div>',
+    unsafe_allow_html=True
+)
