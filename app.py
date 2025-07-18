@@ -25,13 +25,14 @@ element_colors = {
     "Cancer": "#e6ffff", "Scorpio": "#e6ffff", "Pisces": "#e6ffff"
 }
 
-# Symboly planet\planet_symbols = {
+# Symboly planet
+planet_symbols = {
     "Sun":"☉","Moon":"☽","Mercury":"☿","Venus":"♀","Mars":"♂",
     "Jupiter":"♃","Saturn":"♄","Uranus":"♅","Neptune":"♆","Pluto":"♇",
     "Ascendant":"ASC","Rahu":"☊","Ketu":"☋"
 }
 
-# Znamení a glyphy
+# Znamení a glyphy a glyphy
 zodiac = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo",
           "Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"]
 glyphs = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"]
