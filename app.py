@@ -31,7 +31,7 @@ planet_symbols = {
     "Ascendant": "ASC",
 }
 
-AYANAMSA = 23.9  # stejné jako v tabulce
+AYANAMSA = 23.9
 
 
 # --------------------------------------------------
@@ -40,11 +40,6 @@ AYANAMSA = 23.9  # stejné jako v tabulce
 
 @st.cache_data
 def load_geolocations():
-    """
-    Hlavní zdroj: obce.csv v rootu repozitáře.
-    Snaží se najít sloupce s názvem obce, šířkou a délkou automaticky.
-    Když cokoli selže, použije fallback (Praha / Přerov / Mohelnice).
-    """
     try:
         df = pd.read_csv("obce.csv", sep=None, engine="python")
         if df.shape[1] < 3 or len(df) == 0:
@@ -67,7 +62,6 @@ def load_geolocations():
             ):
                 lon_col = col
 
-        # kdyby neprošla heuristika, vezmeme prostě první tři sloupce
         if not (name_col and lat_col and lon_col):
             cols = list(df.columns)
             if len(cols) >= 3:
@@ -97,7 +91,6 @@ def load_geolocations():
             raise ValueError("obce.csv se načetlo, ale bez dat")
 
     except Exception:
-        # fallback – aby appka vždy něco nabídla
         return {
             "Praha": {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
             "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
@@ -114,7 +107,6 @@ city_options = sorted(geolocations.keys())
 # --------------------------------------------------
 
 def get_access_token():
-    """Načtení Prokerala tokenu ze secrets."""
     try:
         client_id = st.secrets["PROKERALA_CLIENT_ID"]
         client_secret = st.secrets["PROKERALA_CLIENT_SECRET"]
@@ -179,7 +171,6 @@ def validate_datetime(d, t):
 def format_datetime_for_api(d, t):
     try:
         dt = datetime.datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M")
-        # Zjednodušeně napevno +01:00 – jsme v Europe/Prague
         return dt.strftime("%Y-%m-%dT%H:%M:%S") + "+01:00"
     except Exception:
         return None
@@ -223,10 +214,6 @@ def create_planet_table(planets):
 # --------------------------------------------------
 
 def compute_aspects(points):
-    """
-    Vstup: list dictů s keys: name, lon (0–360), theta, x, y
-    Výstup: list aspekových čar (x1,y1,x2,y2,color,width)
-    """
     aspects = []
     aspect_defs = [
         ("sextile", 60, 5, "#2ecc71", 1.2),
@@ -277,12 +264,12 @@ def create_svg_chart(planets):
     size = 700
     cx = cy = size / 2
 
-    r_outer = size * 0.46      # vnější kruh
+    r_outer = size * 0.46
     r_tick_inner = r_outer - 6
     r_tick_mid = r_outer - 12
     r_tick_major = r_outer - 20
 
-    r_planets = r_outer * 0.75  # orbita planet
+    r_planets = r_outer * 0.75
     r_houses_outer = r_planets * 0.95
     r_houses_inner = r_planets * 0.55
 
@@ -293,12 +280,10 @@ def create_svg_chart(planets):
         )
     ]
 
-    # vnější kruh
     svg.append(
         f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" stroke="#222" stroke-width="2" fill="white"/>'
     )
 
-    # --- dělení na stupně (tick marks) ---
     for deg in range(360):
         angle = math.radians(90 - deg)
         if deg % 30 == 0:
@@ -323,7 +308,6 @@ def create_svg_chart(planets):
             f'stroke="{stroke}" stroke-width="{width}"/>'
         )
 
-    # --- symboly znamení ---
     for i, g in enumerate(glyphs):
         ang = math.radians(90 - (i * 30 + 15))
         r_text = r_outer - 35
@@ -334,7 +318,6 @@ def create_svg_chart(planets):
             f'text-anchor="middle" dominant-baseline="central" fill="#7b7c92">{g}</text>'
         )
 
-    # --- vnitřní kruh domů ---
     svg.append(
         f'<circle cx="{cx}" cy="{cy}" r="{r_houses_outer}" stroke="#d0d2e0" stroke-width="1" fill="none"/>'
     )
@@ -342,7 +325,6 @@ def create_svg_chart(planets):
         f'<circle cx="{cx}" cy="{cy}" r="{r_houses_inner}" stroke="#f0f1f8" stroke-width="1" fill="none"/>'
     )
 
-    # domy – rovnoměrné dělení (12 x 30°) + čísla
     for i in range(12):
         angle = math.radians(90 - i * 30)
         x1 = cx + r_houses_outer * math.cos(angle)
@@ -363,7 +345,6 @@ def create_svg_chart(planets):
             f'text-anchor="middle" dominant-baseline="central" fill="#9b9db4">{i+1}</text>'
         )
 
-    # --- vypočet pozic planet (po ayanamsa) ---
     points = []
     for p in planets:
         lon = (p.get("longitude", 0) + AYANAMSA) % 360
@@ -380,7 +361,6 @@ def create_svg_chart(planets):
             }
         )
 
-    # --- aspekty (čáry uvnitř kola) ---
     aspects = compute_aspects(points)
     for a in aspects:
         svg.append(
@@ -390,7 +370,6 @@ def create_svg_chart(planets):
             f'stroke-linecap="round" opacity="0.85"/>'
         )
 
-    # --- planety (nad aspekty) ---
     for p in points:
         sym = planet_symbols.get(p["name"], p["name"][0])
         svg.append(
@@ -402,7 +381,6 @@ def create_svg_chart(planets):
             f'text-anchor="middle" dominant-baseline="central" fill="#000000">{sym}</text>'
         )
 
-    # --- hlavní osy (vizuální kříž) ---
     for axis_angle in [0, 90, 180, 270]:
         ang = math.radians(90 - axis_angle)
         x1 = cx + r_houses_inner * math.cos(ang)
@@ -428,7 +406,7 @@ def display_horoscope_results(planets):
 
 
 # --------------------------------------------------
-# UI – PAGE CONFIG + GLOBAL STYLING
+# UI – PAGE CONFIG + STYLING
 # --------------------------------------------------
 
 st.set_page_config(
@@ -437,7 +415,6 @@ st.set_page_config(
     page_icon="✨",
 )
 
-# Globální CSS – pastelový design ala landing page
 st.markdown(
     """
 <style>
@@ -452,26 +429,25 @@ html, body, [class*="css"] {
     background: radial-gradient(circle at top left, #ffe9f0 0, #fff7ff 30%, #f3fbff 70%, #ffffff 100%);
 }
 
-/* Hlavní karta kolem obsahu */
-.main-card {
-    max-width: 1100px;
-    margin: 0 auto 3rem auto;
-    padding: 2.5rem 3rem 3rem 3rem;
+/* Form jako karta */
+div[data-testid="stForm"] {
+    max-width: 900px;
+    margin: 0 auto 2.5rem auto;
+    padding: 1.8rem 2.2rem 1.6rem 2.2rem;
     background: rgba(255,255,255,0.96);
     border-radius: 28px;
     box-shadow: 0 18px 45px rgba(15,23,42,0.08);
 }
 
-/* Mírně zaoblené rohy pro tabulky a widgety */
+/* Tabulka */
 div[data-testid="stDataFrame"] {
     border-radius: 18px;
     overflow: hidden;
     box-shadow: 0 14px 35px rgba(15,23,42,0.08);
 }
 
-/* Text input & selectbox */
-.stTextInput > div > div > input,
-.stSelectbox > div > div > div > div {
+/* Inputs */
+.stTextInput input {
     border-radius: 999px !important;
     border: 1px solid #e5e7f5 !important;
     background: #f9f9ff !important;
@@ -479,13 +455,22 @@ div[data-testid="stDataFrame"] {
     font-size: 0.95rem !important;
 }
 
+/* Selectbox – jednoduché, aby nic neuřezával */
+.stSelectbox div[data-baseweb="select"] {
+    border-radius: 999px !important;
+    border: 1px solid #e5e7f5 !important;
+    background: #f9f9ff !important;
+    font-size: 0.95rem !important;
+}
+
+/* Labely */
 .stTextInput > label,
 .stSelectbox > label {
     font-weight: 500;
     color: #4b5563;
 }
 
-/* Button – gradient CTA */
+/* CTA button */
 .stButton > button {
     border-radius: 999px;
     border: none;
@@ -503,12 +488,6 @@ div[data-testid="stDataFrame"] {
     box-shadow: 0 16px 32px rgba(249,115,22,0.45);
 }
 
-/* Subheadery */
-h2, h3 {
-    color: #15192c;
-}
-
-/* Sekce "Tabulka planet" a "Astrologické kolo" – ikona + text víc k sobě */
 .block-container {
     padding-top: 2.5rem;
 }
@@ -516,10 +495,6 @@ h2, h3 {
 """,
     unsafe_allow_html=True,
 )
-
-# --------------------------------------------------
-# HERO SEKCE + OBSAH V "KARTĚ"
-# --------------------------------------------------
 
 # Hero text
 st.markdown(
@@ -539,12 +514,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Otevřeme hlavní "card" wrapper
-st.markdown("<div class='main-card'>", unsafe_allow_html=True)
+# --------------------------------------------------
+# FORMULÁŘ
+# --------------------------------------------------
 
-# Formulář
 st.markdown(
-    "<h3 style='margin-top:0;margin-bottom:0.8rem;'>Vyplňte údaje narození</h3>",
+    "<h3 style='max-width:900px;margin:0 auto 0.8rem auto;'>Vyplňte údaje narození</h3>",
     unsafe_allow_html=True,
 )
 
@@ -587,9 +562,6 @@ if submit:
     except Exception as e:
         st.error(f"Chyba: {e}")
         st.text(traceback.format_exc())
-
-# Zavřeme hlavní card wrapper
-st.markdown("</div>", unsafe_allow_html=True)
 
 # Footer
 st.markdown(
