@@ -251,11 +251,11 @@ def compute_aspects(points):
 
 
 # --------------------------------------------------
-# SVG GRAF
+# SVG ASTROLOGICAL CHART
 # --------------------------------------------------
 
 def create_svg_chart(planets):
-    st.subheader("🔮 Astrologické kolo")
+    st.subheader("🔮 Astrological chart")
 
     if not isinstance(planets, list):
         st.info("Žádná data k vizualizaci.")
@@ -264,14 +264,18 @@ def create_svg_chart(planets):
     size = 700
     cx = cy = size / 2
 
-    r_outer = size * 0.46
+    r_outer = size * 0.46           # vnější kruh (znamení + stupnice)
     r_tick_inner = r_outer - 6
     r_tick_mid = r_outer - 12
     r_tick_major = r_outer - 20
 
-    r_planets = r_outer * 0.75
+    r_planets = r_outer * 0.75      # orbita planet
     r_houses_outer = r_planets * 0.95
     r_houses_inner = r_planets * 0.55
+
+    # vnitřní stupnice (druhá série čárek)
+    r_inner_scale_outer = r_houses_outer + 6
+    r_inner_scale_inner = r_houses_outer - 6
 
     svg = [
         (
@@ -280,10 +284,14 @@ def create_svg_chart(planets):
         )
     ]
 
+    # vnější kruh
     svg.append(
         f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" stroke="#222" stroke-width="2" fill="white"/>'
     )
 
+    # --------------------------------------------------
+    # 1) Vnější stupnice – každé 1°, zvýrazněno 10° a 30°
+    # --------------------------------------------------
     for deg in range(360):
         angle = math.radians(90 - deg)
         if deg % 30 == 0:
@@ -308,6 +316,9 @@ def create_svg_chart(planets):
             f'stroke="{stroke}" stroke-width="{width}"/>'
         )
 
+    # --------------------------------------------------
+    # 2) Symboly znamení
+    # --------------------------------------------------
     for i, g in enumerate(glyphs):
         ang = math.radians(90 - (i * 30 + 15))
         r_text = r_outer - 35
@@ -318,6 +329,42 @@ def create_svg_chart(planets):
             f'text-anchor="middle" dominant-baseline="central" fill="#7b7c92">{g}</text>'
         )
 
+    # --------------------------------------------------
+    # 3) Vnitřní stupnice – kolem obvodu domů (jen čárky, žádná čísla)
+    #    každé 5°, zvýrazněno 30°
+    # --------------------------------------------------
+    for deg in range(360):
+        angle = math.radians(90 - deg)
+        if deg % 30 == 0:
+            inner = r_inner_scale_inner
+            outer = r_inner_scale_outer + 2
+            width = 1.5
+            stroke = "#777777"
+        elif deg % 10 == 0:
+            inner = r_inner_scale_inner
+            outer = r_inner_scale_outer
+            width = 1.0
+            stroke = "#b0b3c8"
+        elif deg % 5 == 0:
+            inner = r_inner_scale_inner + 2
+            outer = r_inner_scale_outer - 1
+            width = 0.7
+            stroke = "#d0d2e5"
+        else:
+            continue
+
+        x1 = cx + outer * math.cos(angle)
+        y1 = cy - outer * math.sin(angle)
+        x2 = cx + inner * math.cos(angle)
+        y2 = cy - inner * math.sin(angle)
+        svg.append(
+            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+            f'stroke="{stroke}" stroke-width="{width}"/>'
+        )
+
+    # --------------------------------------------------
+    # 4) Kruh domů
+    # --------------------------------------------------
     svg.append(
         f'<circle cx="{cx}" cy="{cy}" r="{r_houses_outer}" stroke="#d0d2e0" stroke-width="1" fill="none"/>'
     )
@@ -325,6 +372,7 @@ def create_svg_chart(planets):
         f'<circle cx="{cx}" cy="{cy}" r="{r_houses_inner}" stroke="#f0f1f8" stroke-width="1" fill="none"/>'
     )
 
+    # dělení na domy + čísla
     for i in range(12):
         angle = math.radians(90 - i * 30)
         x1 = cx + r_houses_outer * math.cos(angle)
@@ -345,6 +393,9 @@ def create_svg_chart(planets):
             f'text-anchor="middle" dominant-baseline="central" fill="#9b9db4">{i+1}</text>'
         )
 
+    # --------------------------------------------------
+    # 5) Pozice planet
+    # --------------------------------------------------
     points = []
     for p in planets:
         lon = (p.get("longitude", 0) + AYANAMSA) % 360
@@ -361,6 +412,7 @@ def create_svg_chart(planets):
             }
         )
 
+    # aspekty
     aspects = compute_aspects(points)
     for a in aspects:
         svg.append(
@@ -370,6 +422,7 @@ def create_svg_chart(planets):
             f'stroke-linecap="round" opacity="0.85"/>'
         )
 
+    # planety
     for p in points:
         sym = planet_symbols.get(p["name"], p["name"][0])
         svg.append(
@@ -381,6 +434,7 @@ def create_svg_chart(planets):
             f'text-anchor="middle" dominant-baseline="central" fill="#000000">{sym}</text>'
         )
 
+    # hlavní osy (ASC–DSC, MC–IC stylově zvýrazněné)
     for axis_angle in [0, 90, 180, 270]:
         ang = math.radians(90 - axis_angle)
         x1 = cx + r_houses_inner * math.cos(ang)
@@ -389,7 +443,7 @@ def create_svg_chart(planets):
         y2 = cy - r_outer * math.sin(ang)
         svg.append(
             f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
-            f'stroke="#000000" stroke-width="2"/>'
+            f'stroke="#000000" stroke-width="2.2"/>'
         )
 
     svg.append("</svg>")
@@ -455,7 +509,7 @@ div[data-testid="stDataFrame"] {
     font-size: 0.95rem !important;
 }
 
-/* Selectbox – jednoduché, aby nic neuřezával */
+/* Selectbox */
 .stSelectbox div[data-baseweb="select"] {
     border-radius: 999px !important;
     border: 1px solid #e5e7f5 !important;
