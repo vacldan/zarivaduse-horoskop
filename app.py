@@ -35,46 +35,79 @@ AYANAMSA = 23.9  # stejná korekce jako v tabulce
 
 
 # --------------------------------------------------
-# NAČTENÍ MĚST
+# NAČTENÍ MĚST Z WORLDCITIES / FALLBACK
 # --------------------------------------------------
 
 @st.cache_data
 def load_geolocations():
     """
-    1) Pokus: worldcities.xlsx (Czechia / Czech Republic)
-    2) Fallback: několik ručně zadaných měst
-    ŽÁDNÉ warningy – uživatel nic neřeší.
+    1) Zkusí načíst worldcities.xlsx a vyfiltrovat města v ČR.
+    2) Když se cokoliv pokazí, použije fallback s několika městy.
     """
-    # 1) worldcities.xlsx
     try:
         df = pd.read_excel("worldcities.xlsx")
-        required = {"city", "country", "lat", "lng"}
-        if not required.issubset(df.columns):
-            raise ValueError("worldcities.xlsx nemá očekávané sloupce")
 
-        df_cz = df[df["country"].isin(["Czechia", "Czech Republic"])]
-        df_cz = df_cz.dropna(subset=["city", "lat", "lng"])
+        # pokus najít sloupce flexibilně podle názvu
+        cols = {c.lower(): c for c in df.columns}
+
+        # city
+        city_col = None
+        for c in df.columns:
+            if "city" in c.lower():
+                city_col = c
+                break
+
+        # country
+        country_col = None
+        for c in df.columns:
+            if "country" in c.lower():
+                country_col = c
+                break
+
+        # latitude
+        lat_col = None
+        for c in df.columns:
+            cl = c.lower()
+            if "lat" in cl:
+                lat_col = c
+                break
+
+        # longitude
+        lon_col = None
+        for c in df.columns:
+            cl = c.lower()
+            if "lng" in cl or "lon" in cl or "long" in cl:
+                lon_col = c
+                break
+
+        if not all([city_col, country_col, lat_col, lon_col]):
+            raise ValueError("worldcities.xlsx: nenalezeny potřebné sloupce")
+
+        # jen ČR (Czechia / Czech Republic / podobné)
+        df_cz = df[df[country_col].astype(str).str.contains("czech", case=False, na=False)]
+        df_cz = df_cz.dropna(subset=[city_col, lat_col, lon_col])
 
         geolocations = {}
         for _, row in df_cz.iterrows():
-            city = str(row["city"])
-            geolocations[city] = {
-                "latitude": float(row["lat"]),
-                "longitude": float(row["lng"]),
+            name = str(row[city_col])
+            geolocations[name] = {
+                "latitude": float(row[lat_col]),
+                "longitude": float(row[lon_col]),
                 "timezone": "Europe/Prague",
             }
 
         if geolocations:
             return geolocations
-        # pokud by byla prázdná, spadne to do fallbacku níže
+
     except Exception:
+        # cokoliv se nepovede -> fallback níže
         pass
 
-    # 2) fallback – pár měst, aby appka vždy fungovala
+    # Fallback – pár měst, aby appka *vždy* fungovala
     return {
-        "Praha": {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
-        "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
-        "Mohelnice": {"latitude": 49.7749, "longitude": 16.9206, "timezone": "Europe/Prague"},
+        "Praha":      {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
+        "Přerov":     {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
+        "Mohelnice":  {"latitude": 49.7749, "longitude": 16.9206, "timezone": "Europe/Prague"},
     }
 
 
@@ -335,6 +368,17 @@ def create_svg_chart(planets):
             f'<text x="{lx:.1f}" y="{ly:.1f}" font-size="13" '
             f'text-anchor="middle" dominant-baseline="central" fill="#444444">{i+1}</text>'
         )
+
+    # --- logo uprostřed ---
+    # soubor logo.png dej do stejné složky jako app.py
+    logo_radius = r_houses_inner * 0.8
+    logo_size = logo_radius * 2
+    logo_x = cx - logo_radius
+    logo_y = cy - logo_radius
+    svg.append(
+        f'<image href="logo.png" x="{logo_x:.1f}" y="{logo_y:.1f}" '
+        f'width="{logo_size:.1f}" height="{logo_size:.1f}" opacity="0.98"/>'
+    )
 
     # --- vypočet pozic planet (po ayanamsa) ---
     points = []
