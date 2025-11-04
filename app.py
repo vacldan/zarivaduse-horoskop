@@ -40,39 +40,42 @@ AYANAMSA = 23.9  # stejná korekce jako v tabulce
 
 @st.cache_data
 def load_geolocations():
-    """Zkusí načíst obce.csv, jinak fallback na několik měst."""
+    """
+    1) Pokus: worldcities.xlsx (Czechia / Czech Republic)
+    2) Fallback: několik ručně zadaných měst
+    ŽÁDNÉ warningy – uživatel nic neřeší.
+    """
+    # 1) worldcities.xlsx
     try:
-        df = pd.read_csv("obce.csv", sep=None, engine="python")
-        if df.shape[1] < 3 or len(df) == 0:
-            raise ValueError("obce.csv nemá dost sloupců/řádků")
+        df = pd.read_excel("worldcities.xlsx")
+        required = {"city", "country", "lat", "lng"}
+        if not required.issubset(df.columns):
+            raise ValueError("worldcities.xlsx nemá očekávané sloupce")
 
-        name_col = df.columns[0]
-        lat_col = df.columns[1]
-        lon_col = df.columns[2]
+        df_cz = df[df["country"].isin(["Czechia", "Czech Republic"])]
+        df_cz = df_cz.dropna(subset=["city", "lat", "lng"])
 
-        df = df.dropna(subset=[name_col, lat_col, lon_col])
-
-        geolocations = {
-            str(row[name_col]): {
-                "latitude": float(row[lat_col]),
-                "longitude": float(row[lon_col]),
+        geolocations = {}
+        for _, row in df_cz.iterrows():
+            city = str(row["city"])
+            geolocations[city] = {
+                "latitude": float(row["lat"]),
+                "longitude": float(row["lng"]),
                 "timezone": "Europe/Prague",
             }
-            for _, row in df.iterrows()
-        }
 
         if geolocations:
             return geolocations
-        else:
-            raise ValueError("obce.csv se načetlo, ale bez dat")
-
+        # pokud by byla prázdná, spadne to do fallbacku níže
     except Exception:
-        # Tichý fallback – žádná žlutá hláška
-        return {
-            "Praha": {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
-            "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
-            "Mohelnice": {"latitude": 49.7749, "longitude": 16.9206, "timezone": "Europe/Prague"},
-        }
+        pass
+
+    # 2) fallback – pár měst, aby appka vždy fungovala
+    return {
+        "Praha": {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
+        "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
+        "Mohelnice": {"latitude": 49.7749, "longitude": 16.9206, "timezone": "Europe/Prague"},
+    }
 
 
 geolocations = load_geolocations()
@@ -204,7 +207,6 @@ def compute_aspects(points):
         ("opposition", 180, 6, "#e74c3c", 1.8),
     ]
 
-    # které body brát do aspektů
     allowed = {"Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Rahu", "Ketu"}
 
     filtered = [p for p in points if p["name"] in allowed]
@@ -325,7 +327,6 @@ def create_svg_chart(planets):
             f'stroke="#777777" stroke-width="1"/>'
         )
 
-        # číslo domu
         mid_angle = math.radians(90 - (i * 30 + 15))
         r_label = (r_houses_outer + r_houses_inner) / 2
         lx = cx + r_label * math.cos(mid_angle)
