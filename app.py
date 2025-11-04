@@ -12,7 +12,7 @@ import traceback
 
 API_BASE_URL = "https://api.prokerala.com/v2/astrology"
 
-# Barvy elementů
+# Barvy elementů (nepoužíváme už 4, ale jen 2 v create_svg_chart)
 element_colors = {
     "Aries": "#ffe6e6", "Leo": "#ffe6e6", "Sagittarius": "#ffe6e6",
     "Taurus": "#e6ffe6", "Virgo": "#e6ffe6", "Capricorn": "#e6ffe6",
@@ -257,7 +257,7 @@ def create_planet_table(planets):
 
 
 # ---------------------------
-#  SVG KRUH
+#  SVG KRUH – VĚTŠÍ, JEN 2 BARVY
 # ---------------------------
 
 def create_svg_chart(planets):
@@ -266,20 +266,27 @@ def create_svg_chart(planets):
         st.info("Žádná data k vizualizaci.")
         return
 
-    size = 450
+    # větší plátno, aby se to líp zarovnalo s tabulkou
+    size = 650
     cx = cy = size / 2
-    r_out = size * 0.45
-    r_in = r_out * 0.9
+
+    # poloměry – víc místa na ikonky, aby nebyly useknuté
+    r_out = size * 0.46   # vnější kruh
+    r_in = r_out * 0.78   # orbita planet
+
     ay = 23.9
+
+    # dvě barvy segmentů: bílá / světle tyrkysová
+    sector_colors = ["#ffffff", "#e0f7f7"]
 
     svg = [
         (
             f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg" '
-            "style=\"background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.15)\">"
+            "style=\"background:#fff;border-radius:18px;box-shadow:0 2px 6px rgba(0,0,0,0.15)\">"
         )
     ]
 
-    # znamení
+    # znamení – 12 segmentů
     for i, sign in enumerate(zodiac):
         start = math.radians(90 - i * 30)
         end = math.radians(90 - (i + 1) * 30)
@@ -287,38 +294,46 @@ def create_svg_chart(planets):
         y1 = cy - r_out * math.sin(start)
         x2 = cx + r_out * math.cos(end)
         y2 = cy - r_out * math.sin(end)
-        col = element_colors.get(sign, "#f0f0f0")
+
+        col = sector_colors[i % 2]  # střídání barev
+
         path = f"M{cx},{cy} L{x1:.1f},{y1:.1f} A{r_out},{r_out} 0 0,1 {x2:.1f},{y2:.1f} Z"
         svg.append(f'<path d="{path}" fill="{col}" stroke="none"/>')
 
+    # vnější a vnitřní kružnice
     svg.append(
-        f'<circle cx="{cx}" cy="{cy}" r="{r_out}" stroke="#888" stroke-width="2" fill="none"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="{r_out}" stroke="#88a" stroke-width="2" fill="none"/>'
     )
     svg.append(
-        f'<circle cx="{cx}" cy="{cy}" r="{r_in}" stroke="#ccc" stroke-width="1" fill="none"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="{r_in}" stroke="#ccd" stroke-width="1.5" fill="none"/>'
     )
 
-    # glyphy znamení
+    # glyphy znamení – blíž dovnitř, aby se neusekávaly
     for i, g in enumerate(glyphs):
         ang = math.radians(90 - (i * 30 + 15))
-        gx = cx + (r_out + 20) * math.cos(ang)
-        gy = cy - (r_out + 20) * math.sin(ang)
+        glyph_radius = r_out - 18  # místo dřívějšího r_out + 20
+        gx = cx + glyph_radius * math.cos(ang)
+        gy = cy - glyph_radius * math.sin(ang)
         svg.append(
-            f'<text x="{gx:.1f}" y="{gy:.1f}" font-size="18" text-anchor="middle" fill="#444">{g}</text>'
+            f'<text x="{gx:.1f}" y="{gy:.1f}" font-size="20" '
+            f'text-anchor="middle" dominant-baseline="central" fill="#33cfcf">{g}</text>'
         )
 
-    # planety
+    # planety – větší kolečka a font
     for p in planets:
         lon = (p.get("longitude", 0) + ay) % 360
         ang = math.radians(90 - lon)
         px = cx + r_in * math.cos(ang)
         py = cy - r_in * math.sin(ang)
         sym = planet_symbols.get(p["name"], p["name"][0])
+
         svg.append(
-            f'<circle cx="{px:.1f}" cy="{py:.1f}" r="12" fill="#fff" stroke="#555" stroke-width="1"/>'
+            f'<circle cx="{px:.1f}" cy="{py:.1f}" r="18" fill="#ffffff" '
+            f'stroke="#555" stroke-width="1.5"/>'
         )
         svg.append(
-            f'<text x="{px:.1f}" y="{py+1:.1f}" font-size="16" text-anchor="middle" fill="#000">{sym}</text>'
+            f'<text x="{px:.1f}" y="{py:.1f}" font-size="18" '
+            f'text-anchor="middle" dominant-baseline="central" fill="#000000">{sym}</text>'
         )
 
     svg.append("</svg>")
