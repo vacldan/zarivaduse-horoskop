@@ -31,7 +31,7 @@ planet_symbols = {
     "Ascendant": "ASC",
 }
 
-AYANAMSA = 23.9  # stejná korekce jako v tabulce
+AYANAMSA = 23.9  # stejné jako v tabulce
 
 
 # --------------------------------------------------
@@ -44,8 +44,6 @@ def load_geolocations():
     Hlavní zdroj: obce.csv v rootu repozitáře.
     Snaží se najít sloupce s názvem obce, šířkou a délkou automaticky.
     Když cokoli selže, použije fallback (Praha / Přerov / Mohelnice).
-    ŽÁDNÉ warningy – uživatel nic neřeší, jen to buď funguje,
-    nebo jede fallback.
     """
     try:
         df = pd.read_csv("obce.csv", sep=None, engine="python")
@@ -291,7 +289,7 @@ def create_svg_chart(planets):
     svg = [
         (
             f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg" '
-            'style="background:#ffffff;border-radius:18px;box-shadow:0 2px 6px rgba(0,0,0,0.1)">'
+            'style="background:#ffffff;border-radius:28px;box-shadow:0 18px 45px rgba(15,23,42,0.08);">'
         )
     ]
 
@@ -333,15 +331,15 @@ def create_svg_chart(planets):
         gy = cy - r_text * math.sin(ang)
         svg.append(
             f'<text x="{gx:.1f}" y="{gy:.1f}" font-size="20" '
-            f'text-anchor="middle" dominant-baseline="central" fill="#000000">{g}</text>'
+            f'text-anchor="middle" dominant-baseline="central" fill="#7b7c92">{g}</text>'
         )
 
     # --- vnitřní kruh domů ---
     svg.append(
-        f'<circle cx="{cx}" cy="{cy}" r="{r_houses_outer}" stroke="#777777" stroke-width="1" fill="none"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="{r_houses_outer}" stroke="#d0d2e0" stroke-width="1" fill="none"/>'
     )
     svg.append(
-        f'<circle cx="{cx}" cy="{cy}" r="{r_houses_inner}" stroke="#dddddd" stroke-width="1" fill="none"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="{r_houses_inner}" stroke="#f0f1f8" stroke-width="1" fill="none"/>'
     )
 
     # domy – rovnoměrné dělení (12 x 30°) + čísla
@@ -353,7 +351,7 @@ def create_svg_chart(planets):
         y2 = cy - r_houses_inner * math.sin(angle)
         svg.append(
             f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
-            f'stroke="#777777" stroke-width="1"/>'
+            f'stroke="#e0e1ee" stroke-width="1"/>'
         )
 
         mid_angle = math.radians(90 - (i * 30 + 15))
@@ -362,7 +360,7 @@ def create_svg_chart(planets):
         ly = cy - r_label * math.sin(mid_angle)
         svg.append(
             f'<text x="{lx:.1f}" y="{ly:.1f}" font-size="13" '
-            f'text-anchor="middle" dominant-baseline="central" fill="#444444">{i+1}</text>'
+            f'text-anchor="middle" dominant-baseline="central" fill="#9b9db4">{i+1}</text>'
         )
 
     # --- vypočet pozic planet (po ayanamsa) ---
@@ -430,33 +428,133 @@ def display_horoscope_results(planets):
 
 
 # --------------------------------------------------
-# UI
+# UI – PAGE CONFIG + GLOBAL STYLING
 # --------------------------------------------------
 
 st.set_page_config(
-    page_title="Zářivá duše • Astrologický horoskop", layout="centered"
+    page_title="Zářivá duše • Astrologický horoskop",
+    layout="centered",
+    page_icon="✨",
 )
 
+# Globální CSS – pastelový design ala landing page
 st.markdown(
     """
-<div style='text-align:center;margin-bottom:1.5rem;'>
-  <h1 style='margin:0;font-size:3rem;font-weight:800;color:#33cfcf;letter-spacing:0.06em;'>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Background */
+.stApp {
+    background: radial-gradient(circle at top left, #ffe9f0 0, #fff7ff 30%, #f3fbff 70%, #ffffff 100%);
+}
+
+/* Hlavní karta kolem obsahu */
+.main-card {
+    max-width: 1100px;
+    margin: 0 auto 3rem auto;
+    padding: 2.5rem 3rem 3rem 3rem;
+    background: rgba(255,255,255,0.96);
+    border-radius: 28px;
+    box-shadow: 0 18px 45px rgba(15,23,42,0.08);
+}
+
+/* Mírně zaoblené rohy pro tabulky a widgety */
+div[data-testid="stDataFrame"] {
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 14px 35px rgba(15,23,42,0.08);
+}
+
+/* Text input & selectbox */
+.stTextInput > div > div > input,
+.stSelectbox > div > div > div > div {
+    border-radius: 999px !important;
+    border: 1px solid #e5e7f5 !important;
+    background: #f9f9ff !important;
+    padding: 0.55rem 1.1rem !important;
+    font-size: 0.95rem !important;
+}
+
+.stTextInput > label,
+.stSelectbox > label {
+    font-weight: 500;
+    color: #4b5563;
+}
+
+/* Button – gradient CTA */
+.stButton > button {
+    border-radius: 999px;
+    border: none;
+    padding: 0.7rem 1.9rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    background: linear-gradient(90deg,#ff9b73,#ff7ad9);
+    color: white;
+    box-shadow: 0 12px 25px rgba(249,115,22,0.35);
+    transition: all 0.15s ease-out;
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 32px rgba(249,115,22,0.45);
+}
+
+/* Subheadery */
+h2, h3 {
+    color: #15192c;
+}
+
+/* Sekce "Tabulka planet" a "Astrologické kolo" – ikona + text víc k sobě */
+.block-container {
+    padding-top: 2.5rem;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+# --------------------------------------------------
+# HERO SEKCE + OBSAH V "KARTĚ"
+# --------------------------------------------------
+
+# Hero text
+st.markdown(
+    """
+<div style='text-align:center;margin-bottom:2.0rem;'>
+  <h1 style='margin:0;font-size:3.1rem;font-weight:800;color:#33cfcf;letter-spacing:0.08em;'>
     ZÁŘIVÁ DUŠE
   </h1>
-  <h2 style='margin:0.2rem 0 0.4rem;font-size:2rem;font-weight:700;color:#33cfcf;'>
+  <h2 style='margin:0.35rem 0 0.5rem;font-size:2.2rem;font-weight:700;color:#15192c;'>
     Astrologický horoskop
   </h2>
-  <p style='margin:0;font-size:1.1rem;color:#33cfcf;'>
-    Vaše hvězdná mapa narození
+  <p style='margin:0;font-size:1.1rem;color:#6b7280;'>
+    Vaše hvězdná mapa narození – na pár kliknutí, připravená k výkladu.
   </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
+# Otevřeme hlavní "card" wrapper
+st.markdown("<div class='main-card'>", unsafe_allow_html=True)
+
+# Formulář
+st.markdown(
+    "<h3 style='margin-top:0;margin-bottom:0.8rem;'>Vyplňte údaje narození</h3>",
+    unsafe_allow_html=True,
+)
+
 with st.form("astro_form"):
-    datum = st.text_input("Datum narození (YYYY-MM-DD)", "1990-01-01")
-    cas = st.text_input("Čas narození (HH:MM)", "12:00")
+    col1, col2 = st.columns(2)
+    with col1:
+        datum = st.text_input("Datum narození (YYYY-MM-DD)", "1990-01-01")
+    with col2:
+        cas = st.text_input("Čas narození (HH:MM)", "12:00")
+
     mesto = st.selectbox("Město narození", city_options)
     submit = st.form_submit_button("Vypočítat horoskop")
 
@@ -483,16 +581,21 @@ if submit:
                 "Nepodařilo se načíst data planet. Zkontroluj API údaje nebo to zkus znovu."
             )
         else:
+            st.markdown("<div style='margin-top:2rem;'></div>", unsafe_allow_html=True)
             display_horoscope_results(planets)
 
     except Exception as e:
         st.error(f"Chyba: {e}")
         st.text(traceback.format_exc())
 
+# Zavřeme hlavní card wrapper
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Footer
 st.markdown(
     """
-<div style="text-align:center;font-size:0.9em;margin-top:2em;">
-Powered by <a href="https://developer.prokerala.com/" target="_blank">Prokerala Astrology API</a>
+<div style="text-align:center;font-size:0.9em;margin-top:2.5rem;color:#9ca3af;">
+Powered by <a href="https://developer.prokerala.com/" target="_blank" style="color:#33cfcf;text-decoration:none;">Prokerala Astrology API</a>
 </div>
 """,
     unsafe_allow_html=True,
