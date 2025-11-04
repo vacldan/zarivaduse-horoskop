@@ -12,14 +12,6 @@ import traceback
 
 API_BASE_URL = "https://api.prokerala.com/v2/astrology"
 
-# API klíče – bereme ze Streamlit secrets
-try:
-    PROKERALA_CLIENT_ID = st.secrets["PROKERALA_CLIENT_ID"]
-    PROKERALA_CLIENT_SECRET = st.secrets["PROKERALA_CLIENT_SECRET"]
-except Exception:
-    PROKERALA_CLIENT_ID = None
-    PROKERALA_CLIENT_SECRET = None
-
 # Barvy elementů
 element_colors = {
     "Aries": "#ffe6e6", "Leo": "#ffe6e6", "Sagittarius": "#ffe6e6",
@@ -61,13 +53,12 @@ glyphs = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", 
 def load_geolocations_from_csv():
     """
     Načte česká města z obce.csv.
-    Snaží se detekovat sloupce pro název obce, šířku a délku.
-    Když se něco pokazí, vrátí jen Prahu a Přerov, aby appka nespadla.
+    Snaží se odhadnout sloupce pro název, šířku a délku.
+    Když se něco pokazí, vrátí jen Prahu a Přerov.
     """
     try:
         df = pd.read_csv("obce.csv")
 
-        # pokus o detekci názvů sloupců
         name_col = None
         lat_col = None
         lon_col = None
@@ -81,7 +72,7 @@ def load_geolocations_from_csv():
             if lon_col is None and (cl == "lon" or "lng" in cl or "long" in cl or "délka" in cl or "delka" in cl):
                 lon_col = col
 
-        # pokud se nepovedlo, vezmeme první tři sloupce jako (název, lat, lon)
+        # fallback – první tři sloupce
         if not (name_col and lat_col and lon_col):
             cols = list(df.columns)
             if len(cols) < 3:
@@ -105,15 +96,16 @@ def load_geolocations_from_csv():
                 "timezone": "Europe/Prague",
             }
 
-        # pojistka – kdyby se nenačetlo nic
         if not geolocations:
             raise ValueError("V obce.csv se nepodařilo vytvořit žádné geolokace.")
 
         return geolocations
 
     except Exception as e:
-        st.warning(f"Nelze korektně načíst obce z obce.csv ({e}). "
-                   f"Použiji základní seznam měst.")
+        st.warning(
+            f"Nelze korektně načíst obce z obce.csv ({e}). "
+            f"Použiji základní seznam měst."
+        )
         return {
             "Praha":  {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
             "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
@@ -129,9 +121,13 @@ city_options = sorted(geolocations.keys())
 # ---------------------------
 
 def get_access_token():
-    if not PROKERALA_CLIENT_ID or not PROKERALA_CLIENT_SECRET:
+    """Načte klíče ze Streamlit secrets a vrátí přístupový token."""
+    try:
+        client_id = st.secrets["PROKERALA_CLIENT_ID"]
+        client_secret = st.secrets["PROKERALA_CLIENT_SECRET"]
+    except Exception:
         st.error(
-            "Chybí PROKERALA_CLIENT_ID nebo PROKERALA_CLIENT_SECRET ve Streamlit secrets. "
+            "Chybí PROKERALA_CLIENT_ID nebo PROKERALA_CLIENT_SECRET ve Streamlit Secrets. "
             "Otevři v nastavení aplikace sekci *Secrets* a doplň je."
         )
         return None
@@ -141,8 +137,8 @@ def get_access_token():
             "https://api.prokerala.com/token",
             data={
                 "grant_type": "client_credentials",
-                "client_id": PROKERALA_CLIENT_ID,
-                "client_secret": PROKERALA_CLIENT_SECRET,
+                "client_id": client_id,
+                "client_secret": client_secret,
             },
             timeout=30,
         )
@@ -171,7 +167,8 @@ def fetch_planet_positions(params):
         resp.raise_for_status()
         data = resp.json().get("data")
         return data.get("planet_position")
-    except Exception:
+    except Exception as e:
+        st.error(f"Chyba při načítání planet: {e}")
         return None
 
 
@@ -190,7 +187,7 @@ def validate_datetime(d, t):
 def format_datetime_for_api(d, t):
     try:
         dt = datetime.datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M")
-        # pokud chceš jiný offset než pevně +01:00, můžeš to později dopočítat podle timezone
+        # Pozn.: případně můžeš dopočítat offset z timezone, teď je napevno +01:00
         return dt.strftime("%Y-%m-%dT%H:%M:%S") + "+01:00"
     except Exception:
         return None
@@ -206,8 +203,7 @@ def create_planet_table(planets):
         st.error("Data planet nejsou ve správném formátu.")
         return
 
-    # ayanamsa
-    ay = 23.9
+    ay = 23.9  # ayanamsa
     rows = []
     for p in planets:
         lon = (p.get("longitude", 0) + ay) % 360
@@ -317,7 +313,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Formulář
 with st.form("astro_form"):
     datum = st.text_input("Datum narození (YYYY-MM-DD)", "1990-01-01")
     cas = st.text_input("Čas narození (HH:MM)", "12:00")
