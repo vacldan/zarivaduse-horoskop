@@ -7,7 +7,7 @@ import traceback
 from urllib.parse import urlencode
 
 # --------------------------------------------------
-# KONFIGURACE
+# ZÁKLADNÍ KONFIGURACE
 # --------------------------------------------------
 
 API_BASE_URL = "https://api.prokerala.com/v2/astrology"
@@ -26,13 +26,12 @@ planet_symbols = {
     "Mars": "♂",
     "Jupiter": "♃",
     "Saturn": "♄",
-    "Uranus": "♅",
-    "Neptune": "♆",
-    "Pluto": "♇",
-    "Ascendant": "ASC",
     "Rahu": "☊",
     "Ketu": "☋",
+    "Ascendant": "ASC",
 }
+
+AYANAMSA = 23.9  # stejná korekce jako v tabulce
 
 
 # --------------------------------------------------
@@ -41,23 +40,34 @@ planet_symbols = {
 
 @st.cache_data
 def load_geolocations():
+    """Zkusí načíst obce.csv, jinak fallback na několik měst."""
     try:
         df = pd.read_csv("obce.csv", sep=None, engine="python")
-        df = df.dropna()
+        if df.shape[1] < 3 or len(df) == 0:
+            raise ValueError("obce.csv nemá dost sloupců/řádků")
+
         name_col = df.columns[0]
         lat_col = df.columns[1]
         lon_col = df.columns[2]
+
+        df = df.dropna(subset=[name_col, lat_col, lon_col])
+
         geolocations = {
-            row[name_col]: {
+            str(row[name_col]): {
                 "latitude": float(row[lat_col]),
                 "longitude": float(row[lon_col]),
                 "timezone": "Europe/Prague",
             }
             for _, row in df.iterrows()
         }
-        return geolocations
+
+        if geolocations:
+            return geolocations
+        else:
+            raise ValueError("obce.csv se načetlo, ale bez dat")
+
     except Exception:
-        st.warning("Nelze načíst obce.csv, použiji základní seznam měst.")
+        # Tichý fallback – žádná žlutá hláška
         return {
             "Praha": {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
             "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
@@ -74,11 +84,15 @@ city_options = sorted(geolocations.keys())
 # --------------------------------------------------
 
 def get_access_token():
+    """Načtení Prokerala tokenu ze secrets."""
     try:
         client_id = st.secrets["PROKERALA_CLIENT_ID"]
         client_secret = st.secrets["PROKERALA_CLIENT_SECRET"]
     except Exception:
-        st.error("Chybí API klíče v sekci Secrets!")
+        st.error(
+            "Chybí PROKERALA_CLIENT_ID nebo PROKERALA_CLIENT_SECRET ve Streamlit Secrets. "
+            "Doplň je v nastavení aplikace."
+        )
         return None
 
     try:
@@ -89,11 +103,12 @@ def get_access_token():
                 "client_id": client_id,
                 "client_secret": client_secret,
             },
+            timeout=30,
         )
         resp.raise_for_status()
         return resp.json().get("access_token")
     except Exception as e:
-        st.error(f"Chyba při získávání tokenu: {e}")
+        st.error(f"Chyba při získávání API tokenu: {e}")
         return None
 
 
@@ -115,7 +130,28 @@ def fetch_planet_positions(params):
         r.raise_for_status()
         return r.json()["data"]["planet_position"]
     except Exception as e:
-        st.error(f"Chyba API: {e}")
+        st.error(f"Chyba při načítání dat z API: {e}")
+        return None
+
+
+# --------------------------------------------------
+# DATETIME HELPERS
+# --------------------------------------------------
+
+def validate_datetime(d, t):
+    try:
+        datetime.datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M")
+        return True
+    except Exception:
+        return False
+
+
+def format_datetime_for_api(d, t):
+    try:
+        dt = datetime.datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M")
+        # Zjednodušeně napevno +01:00 – jsme v Europe/Prague
+        return dt.strftime("%Y-%m-%dT%H:%M:%S") + "+01:00"
+    except Exception:
         return None
 
 
@@ -125,23 +161,77 @@ def fetch_planet_positions(params):
 
 def create_planet_table(planets):
     st.subheader("📋 Tabulka planet")
-    ay = 23.9
+
+    if not isinstance(planets, list):
+        st.error("Data planet nejsou ve správném formátu.")
+        return
+
     rows = []
     for p in planets:
-        lon = (p.get("longitude", 0) + ay) % 360
+        lon = (p.get("longitude", 0) + AYANAMSA) % 360
         idx = int(lon // 30)
         sign = zodiac[idx]
         deg = lon % 30
         di = int(deg)
         mi = int((deg - di) * 60)
-        rows.append({
-            "Planet": f"{planet_symbols.get(p['name'], p['name'])} {p['name']}",
-            "Sign": sign,
-            "Degree": f"{di}°{mi:02d}'",
-            "House": p.get("position", "?"),
-            "Motion": "Retrograde" if p.get("is_retrograde", False) else "Direct",
-        })
-    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+        rows.append(
+            {
+                "Planet": f"{planet_symbols.get(p['name'], p['name'])} {p['name']}",
+                "Sign": sign,
+                "Degree": f"{di}°{mi:02d}'",
+                "House": p.get("position", "?"),
+                "Motion": "Retrograde" if p.get("is_retrograde", False) else "Direct",
+            }
+        )
+
+    df = pd.DataFrame(rows)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+
+# --------------------------------------------------
+# ASPEKTY
+# --------------------------------------------------
+
+def compute_aspects(points):
+    """
+    Vstup: list dictů s keys: name, lon (0–360), theta, x, y
+    Výstup: list aspekových čar (x1,y1,x2,y2,color,width)
+    """
+    aspects = []
+    aspect_defs = [
+        ("sextile", 60, 5, "#2ecc71", 1.2),
+        ("trine", 120, 6, "#3498db", 1.6),
+        ("opposition", 180, 6, "#e74c3c", 1.8),
+    ]
+
+    # které body brát do aspektů
+    allowed = {"Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Rahu", "Ketu"}
+
+    filtered = [p for p in points if p["name"] in allowed]
+
+    for i in range(len(filtered)):
+        for j in range(i + 1, len(filtered)):
+            p1 = filtered[i]
+            p2 = filtered[j]
+            diff = abs(p1["lon"] - p2["lon"])
+            if diff > 180:
+                diff = 360 - diff
+
+            for name, exact, orb, color, width in aspect_defs:
+                if abs(diff - exact) <= orb:
+                    aspects.append(
+                        {
+                            "x1": p1["x"],
+                            "y1": p1["y"],
+                            "x2": p2["x"],
+                            "y2": p2["y"],
+                            "color": color,
+                            "width": width,
+                        }
+                    )
+                    break
+
+    return aspects
 
 
 # --------------------------------------------------
@@ -149,43 +239,60 @@ def create_planet_table(planets):
 # --------------------------------------------------
 
 def create_svg_chart(planets):
-    st.subheader("🜂 Astrologické kolo")
+    st.subheader("🔮 Astrologické kolo")
+
+    if not isinstance(planets, list):
+        st.info("Žádná data k vizualizaci.")
+        return
 
     size = 700
     cx = cy = size / 2
-    r_outer = size * 0.46
-    r_inner = r_outer * 0.75
-    ay = 23.9
 
-    svg = [f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg" '
-           'style="background:white;border-radius:18px;box-shadow:0 2px 6px rgba(0,0,0,0.1)">']
+    r_outer = size * 0.46      # vnější kruh
+    r_tick_inner = r_outer - 6
+    r_tick_mid = r_outer - 12
+    r_tick_major = r_outer - 20
 
-    # Vnější kruh
-    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" stroke="#222" stroke-width="2" fill="white"/>')
+    r_planets = r_outer * 0.75  # orbita planet
+    r_houses_outer = r_planets * 0.95
+    r_houses_inner = r_planets * 0.55
+
+    svg = [
+        (
+            f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg" '
+            'style="background:#ffffff;border-radius:18px;box-shadow:0 2px 6px rgba(0,0,0,0.1)">'
+        )
+    ]
+
+    # vnější kruh
+    svg.append(
+        f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" stroke="#222" stroke-width="2" fill="white"/>'
+    )
 
     # --- dělení na stupně (tick marks) ---
     for deg in range(360):
         angle = math.radians(90 - deg)
-        outer = r_outer
         if deg % 30 == 0:
-            inner = r_outer - 20  # hlavní čára (znamení)
-            stroke = "#000"
+            inner = r_tick_major
+            stroke = "#000000"
             width = 2
         elif deg % 10 == 0:
-            inner = r_outer - 12  # střední čárky
-            stroke = "#555"
-            width = 1.5
+            inner = r_tick_mid
+            stroke = "#555555"
+            width = 1.4
         else:
-            inner = r_outer - 6   # mini čárky po 1°
-            stroke = "#999"
+            inner = r_tick_inner
+            stroke = "#999999"
             width = 0.8
 
-        x1 = cx + outer * math.cos(angle)
-        y1 = cy - outer * math.sin(angle)
+        x1 = cx + r_outer * math.cos(angle)
+        y1 = cy - r_outer * math.sin(angle)
         x2 = cx + inner * math.cos(angle)
         y2 = cy - inner * math.sin(angle)
-        svg.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
-                   f'stroke="{stroke}" stroke-width="{width}"/>')
+        svg.append(
+            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+            f'stroke="{stroke}" stroke-width="{width}"/>'
+        )
 
     # --- symboly znamení ---
     for i, g in enumerate(glyphs):
@@ -193,44 +300,120 @@ def create_svg_chart(planets):
         r_text = r_outer - 35
         gx = cx + r_text * math.cos(ang)
         gy = cy - r_text * math.sin(ang)
-        svg.append(f'<text x="{gx:.1f}" y="{gy:.1f}" font-size="20" '
-                   f'text-anchor="middle" dominant-baseline="central" fill="#000">{g}</text>')
+        svg.append(
+            f'<text x="{gx:.1f}" y="{gy:.1f}" font-size="20" '
+            f'text-anchor="middle" dominant-baseline="central" fill="#000000">{g}</text>'
+        )
 
-    # --- planety ---
+    # --- vnitřní kruh domů ---
+    svg.append(
+        f'<circle cx="{cx}" cy="{cy}" r="{r_houses_outer}" stroke="#777777" stroke-width="1" fill="none"/>'
+    )
+    svg.append(
+        f'<circle cx="{cx}" cy="{cy}" r="{r_houses_inner}" stroke="#dddddd" stroke-width="1" fill="none"/>'
+    )
+
+    # domy – rovnoměrné dělení (12 x 30°) + čísla
+    for i in range(12):
+        angle = math.radians(90 - i * 30)
+        x1 = cx + r_houses_outer * math.cos(angle)
+        y1 = cy - r_houses_outer * math.sin(angle)
+        x2 = cx + r_houses_inner * math.cos(angle)
+        y2 = cy - r_houses_inner * math.sin(angle)
+        svg.append(
+            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+            f'stroke="#777777" stroke-width="1"/>'
+        )
+
+        # číslo domu
+        mid_angle = math.radians(90 - (i * 30 + 15))
+        r_label = (r_houses_outer + r_houses_inner) / 2
+        lx = cx + r_label * math.cos(mid_angle)
+        ly = cy - r_label * math.sin(mid_angle)
+        svg.append(
+            f'<text x="{lx:.1f}" y="{ly:.1f}" font-size="13" '
+            f'text-anchor="middle" dominant-baseline="central" fill="#444444">{i+1}</text>'
+        )
+
+    # --- vypočet pozic planet (po ayanamsa) ---
+    points = []
     for p in planets:
-        lon = (p.get("longitude", 0) + ay) % 360
-        ang = math.radians(90 - lon)
-        px = cx + r_inner * math.cos(ang)
-        py = cy - r_inner * math.sin(ang)
-        sym = planet_symbols.get(p["name"], p["name"][0])
-        svg.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="14" fill="white" stroke="#333" stroke-width="1.3"/>')
-        svg.append(f'<text x="{px:.1f}" y="{py:.1f}" font-size="15" '
-                   f'text-anchor="middle" dominant-baseline="central" fill="#000">{sym}</text>')
+        lon = (p.get("longitude", 0) + AYANAMSA) % 360
+        theta = math.radians(90 - lon)
+        px = cx + r_planets * math.cos(theta)
+        py = cy - r_planets * math.sin(theta)
+        points.append(
+            {
+                "name": p["name"],
+                "lon": lon,
+                "theta": theta,
+                "x": px,
+                "y": py,
+            }
+        )
 
-    # --- hlavní osy (ASC, MC, DSC, IC) ---
+    # --- aspekty (čáry uvnitř kola) ---
+    aspects = compute_aspects(points)
+    for a in aspects:
+        svg.append(
+            f'<line x1="{a["x1"]:.1f}" y1="{a["y1"]:.1f}" '
+            f'x2="{a["x2"]:.1f}" y2="{a["y2"]:.1f}" '
+            f'stroke="{a["color"]}" stroke-width="{a["width"]}" '
+            f'stroke-linecap="round" opacity="0.85"/>'
+        )
+
+    # --- planety (nad aspekty) ---
+    for p in points:
+        sym = planet_symbols.get(p["name"], p["name"][0])
+        svg.append(
+            f'<circle cx="{p["x"]:.1f}" cy="{p["y"]:.1f}" r="15" '
+            f'fill="#ffffff" stroke="#333333" stroke-width="1.4"/>'
+        )
+        svg.append(
+            f'<text x="{p["x"]:.1f}" y="{p["y"]:.1f}" font-size="16" '
+            f'text-anchor="middle" dominant-baseline="central" fill="#000000">{sym}</text>'
+        )
+
+    # --- hlavní osy (vizuální kříž) ---
     for axis_angle in [0, 90, 180, 270]:
         ang = math.radians(90 - axis_angle)
-        x1 = cx + r_inner * math.cos(ang)
-        y1 = cy - r_inner * math.sin(ang)
+        x1 = cx + r_houses_inner * math.cos(ang)
+        y1 = cy - r_houses_inner * math.sin(ang)
         x2 = cx + r_outer * math.cos(ang)
         y2 = cy - r_outer * math.sin(ang)
-        svg.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
-                   f'stroke="#000" stroke-width="2"/>')
+        svg.append(
+            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+            f'stroke="#000000" stroke-width="2"/>'
+        )
 
     svg.append("</svg>")
-    st.markdown(f'<div style="display:flex;justify-content:center;">{"".join(svg)}</div>', unsafe_allow_html=True)
+
+    st.markdown(
+        f'<div style="display:flex;justify-content:center;margin-top:10px;">{"".join(svg)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def display_horoscope_results(planets):
+    create_planet_table(planets)
+    create_svg_chart(planets)
 
 
 # --------------------------------------------------
 # UI
 # --------------------------------------------------
 
-st.set_page_config(page_title="Zářivá duše • Horoskop", layout="centered")
+st.set_page_config(
+    page_title="Zářivá duše • Astrologický horoskop", layout="centered"
+)
 
-st.markdown("""
+st.markdown(
+    """
 <h1 style='text-align:center;color:#33cfcf;'>Zářivá duše • Astrologický horoskop</h1>
-<h3 style='text-align:center;'>Vaše hvězdná mapa narození</h3>
-""", unsafe_allow_html=True)
+<h3 style='text-align:center;color:#33cfcf;'>Vaše hvězdná mapa narození</h3>
+""",
+    unsafe_allow_html=True,
+)
 
 with st.form("astro_form"):
     datum = st.text_input("Datum narození (YYYY-MM-DD)", "1990-01-01")
@@ -240,12 +423,14 @@ with st.form("astro_form"):
 
 if submit:
     try:
+        if not validate_datetime(datum, cas):
+            raise ValueError("Špatný formát data nebo času.")
+
         poz = geolocations[mesto]
-        dt = datetime.datetime.strptime(f"{datum} {cas}", "%Y-%m-%d %H:%M")
-        datetime_api = dt.strftime("%Y-%m-%dT%H:%M:%S+01:00")
+        dt_api = format_datetime_for_api(datum, cas)
 
         params = {
-            "datetime": datetime_api,
+            "datetime": dt_api,
             "coordinates": f"{poz['latitude']},{poz['longitude']}",
             "ayanamsa": 1,
             "house_system": "placidus",
@@ -253,15 +438,23 @@ if submit:
         }
 
         planets = fetch_planet_positions(params)
-        if planets:
-            create_planet_table(planets)
-            create_svg_chart(planets)
+
+        if planets is None:
+            st.error(
+                "Nepodařilo se načíst data planet. Zkontroluj API údaje nebo to zkus znovu."
+            )
         else:
-            st.error("Nepodařilo se načíst data planet.")
+            display_horoscope_results(planets)
+
     except Exception as e:
         st.error(f"Chyba: {e}")
         st.text(traceback.format_exc())
 
-st.markdown("<div style='text-align:center;margin-top:2em;font-size:0.9em;'>"
-            "Powered by <a href='https://developer.prokerala.com/' target='_blank'>Prokerala Astrology API</a></div>",
-            unsafe_allow_html=True)
+st.markdown(
+    """
+<div style="text-align:center;font-size:0.9em;margin-top:2em;">
+Powered by <a href="https://developer.prokerala.com/" target="_blank">Prokerala Astrology API</a>
+</div>
+""",
+    unsafe_allow_html=True,
+)
