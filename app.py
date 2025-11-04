@@ -48,7 +48,6 @@ def load_geolocations():
     nebo jede fallback.
     """
     try:
-        # sep=None + engine="python" zkusí , ; tab atd.
         df = pd.read_csv("obce.csv", sep=None, engine="python")
         if df.shape[1] < 3 or len(df) == 0:
             raise ValueError("obce.csv nemá dost sloupců/řádků")
@@ -366,17 +365,6 @@ def create_svg_chart(planets):
             f'text-anchor="middle" dominant-baseline="central" fill="#444444">{i+1}</text>'
         )
 
-    # --- logo uprostřed ---
-    # soubor logo.png dej do stejné složky jako app.py
-    logo_radius = r_houses_inner * 0.8
-    logo_size = logo_radius * 2
-    logo_x = cx - logo_radius
-    logo_y = cy - logo_radius
-    svg.append(
-        f'<image href="logo.png" x="{logo_x:.1f}" y="{logo_y:.1f}" '
-        f'width="{logo_size:.1f}" height="{logo_size:.1f}" opacity="0.98"/>'
-    )
-
     # --- vypočet pozic planet (po ayanamsa) ---
     points = []
     for p in planets:
@@ -451,8 +439,17 @@ st.set_page_config(
 
 st.markdown(
     """
-<h1 style='text-align:center;color:#33cfcf;'>Zářivá duše • Astrologický horoskop</h1>
-<h3 style='text-align:center;color:#33cfcf;'>Vaše hvězdná mapa narození</h3>
+<div style='text-align:center;margin-bottom:1.5rem;'>
+  <h1 style='margin:0;font-size:3rem;font-weight:800;color:#33cfcf;letter-spacing:0.06em;'>
+    ZÁŘIVÁ DUŠE
+  </h1>
+  <h2 style='margin:0.2rem 0 0.4rem;font-size:2rem;font-weight:700;color:#33cfcf;'>
+    Astrologický horoskop
+  </h2>
+  <p style='margin:0;font-size:1.1rem;color:#33cfcf;'>
+    Vaše hvězdná mapa narození
+  </p>
+</div>
 """,
     unsafe_allow_html=True,
 )
