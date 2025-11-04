@@ -35,80 +35,77 @@ AYANAMSA = 23.9  # stejná korekce jako v tabulce
 
 
 # --------------------------------------------------
-# NAČTENÍ MĚST Z WORLDCITIES / FALLBACK
+# NAČTENÍ MĚST Z OBCE.CSV + FALLBACK
 # --------------------------------------------------
 
 @st.cache_data
 def load_geolocations():
     """
-    1) Zkusí načíst worldcities.xlsx a vyfiltrovat města v ČR.
-    2) Když se cokoliv pokazí, použije fallback s několika městy.
+    Hlavní zdroj: obce.csv v rootu repozitáře.
+    Snaží se najít sloupce s názvem obce, šířkou a délkou automaticky.
+    Když cokoli selže, použije fallback (Praha / Přerov / Mohelnice).
+    ŽÁDNÉ warningy – uživatel nic neřeší, jen to buď funguje,
+    nebo jede fallback.
     """
     try:
-        df = pd.read_excel("worldcities.xlsx")
+        # sep=None + engine="python" zkusí , ; tab atd.
+        df = pd.read_csv("obce.csv", sep=None, engine="python")
+        if df.shape[1] < 3 or len(df) == 0:
+            raise ValueError("obce.csv nemá dost sloupců/řádků")
 
-        # pokus najít sloupce flexibilně podle názvu
-        cols = {c.lower(): c for c in df.columns}
-
-        # city
-        city_col = None
-        for c in df.columns:
-            if "city" in c.lower():
-                city_col = c
-                break
-
-        # country
-        country_col = None
-        for c in df.columns:
-            if "country" in c.lower():
-                country_col = c
-                break
-
-        # latitude
+        name_col = None
         lat_col = None
-        for c in df.columns:
-            cl = c.lower()
-            if "lat" in cl:
-                lat_col = c
-                break
-
-        # longitude
         lon_col = None
-        for c in df.columns:
-            cl = c.lower()
-            if "lng" in cl or "lon" in cl or "long" in cl:
-                lon_col = c
-                break
 
-        if not all([city_col, country_col, lat_col, lon_col]):
-            raise ValueError("worldcities.xlsx: nenalezeny potřebné sloupce")
+        for col in df.columns:
+            cl = col.lower()
+            if name_col is None and any(
+                k in cl for k in ["obec", "mesto", "město", "nazev", "název", "city"]
+            ):
+                name_col = col
+            if lat_col is None and "lat" in cl:
+                lat_col = col
+            if lon_col is None and (
+                cl == "lon" or "lng" in cl or "long" in cl or "délka" in cl or "delka" in cl
+            ):
+                lon_col = col
 
-        # jen ČR (Czechia / Czech Republic / podobné)
-        df_cz = df[df[country_col].astype(str).str.contains("czech", case=False, na=False)]
-        df_cz = df_cz.dropna(subset=[city_col, lat_col, lon_col])
+        # kdyby neprošla heuristika, vezmeme prostě první tři sloupce
+        if not (name_col and lat_col and lon_col):
+            cols = list(df.columns)
+            if len(cols) >= 3:
+                name_col, lat_col, lon_col = cols[0], cols[1], cols[2]
+            else:
+                raise ValueError("obce.csv nemá použitelné sloupce")
+
+        df = df.dropna(subset=[name_col, lat_col, lon_col])
 
         geolocations = {}
-        for _, row in df_cz.iterrows():
-            name = str(row[city_col])
+        for _, row in df.iterrows():
+            try:
+                name = str(row[name_col])
+                lat = float(row[lat_col])
+                lon = float(row[lon_col])
+            except Exception:
+                continue
             geolocations[name] = {
-                "latitude": float(row[lat_col]),
-                "longitude": float(row[lon_col]),
+                "latitude": lat,
+                "longitude": lon,
                 "timezone": "Europe/Prague",
             }
 
         if geolocations:
             return geolocations
+        else:
+            raise ValueError("obce.csv se načetlo, ale bez dat")
 
     except Exception:
-        # cokoliv se nepovede -> fallback níže
-        pass
-
-    # Fallback – pár měst, aby appka *vždy* fungovala
-    return {
-        "Praha":      {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
-        "Přerov":     {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
-        "Mohelnice":  {"latitude": 49.7749, "longitude": 16.9206, "timezone": "Europe/Prague"},
-    }
+        # fallback – aby appka vždy něco nabídla
+        return {
+            "Praha": {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
+            "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
+            "Mohelnice": {"latitude": 49.7749, "longitude": 16.9206, "timezone": "Europe/Prague"},
+        }
 
 
 geolocations = load_geolocations()
