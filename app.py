@@ -17,7 +17,7 @@ element_colors = {
     "Aries": "#ffe6e6", "Leo": "#ffe6e6", "Sagittarius": "#ffe6e6",
     "Taurus": "#e6ffe6", "Virgo": "#e6ffe6", "Capricorn": "#e6ffe6",
     "Gemini": "#e6e6ff", "Libra": "#e6e6ff", "Aquarius": "#e6e6ff",
-    "Cancer": "#e6ffff", "Scorpio": "#e6ffff", "Pisces": "#e6ffff"
+    "Cancer": "#e6ffff", "Scorpio": "#e6ffff", "Pisces": "#e6ffff",
 }
 
 # Symboly planet
@@ -46,70 +46,100 @@ glyphs = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", 
 
 
 # ---------------------------
-#  DATA: MĚSTA Z CSV
+#  DATA: MĚSTA
 # ---------------------------
 
 @st.cache_data
 def load_geolocations_from_csv():
     """
-    Načte česká města z obce.csv.
-    Snaží se odhadnout sloupce pro název, šířku a délku.
-    Když se něco pokazí, vrátí jen Prahu a Přerov.
+    1) Zkusí obce.csv.
+    2) Když to nejde, zkusí worldcities.xlsx (jen ČR).
+    3) Když selže všechno, vrátí Praha + Přerov.
     """
+
+    # ---------- 1. pokus: obce.csv ----------
     try:
-        df = pd.read_csv("obce.csv")
+        df = pd.read_csv("obce.csv", sep=None, engine="python")
+        if df.shape[1] > 0 and len(df) > 0:
+            name_col = None
+            lat_col = None
+            lon_col = None
 
-        name_col = None
-        lat_col = None
-        lon_col = None
+            for col in df.columns:
+                cl = col.lower()
+                if name_col is None and any(
+                    k in cl for k in ["obec", "mesto", "město", "nazev", "název", "city"]
+                ):
+                    name_col = col
+                if lat_col is None and "lat" in cl:
+                    lat_col = col
+                if lon_col is None and (
+                    cl == "lon"
+                    or "lng" in cl
+                    or "long" in cl
+                    or "délka" in cl
+                    or "delka" in cl
+                ):
+                    lon_col = col
 
-        for col in df.columns:
-            cl = col.lower()
-            if name_col is None and any(k in cl for k in ["obec", "mesto", "město", "nazev", "název", "city"]):
-                name_col = col
-            if lat_col is None and "lat" in cl:
-                lat_col = col
-            if lon_col is None and (cl == "lon" or "lng" in cl or "long" in cl or "délka" in cl or "delka" in cl):
-                lon_col = col
+            # fallback: první tři sloupce
+            if not (name_col and lat_col and lon_col):
+                cols = list(df.columns)
+                if len(cols) >= 3:
+                    name_col, lat_col, lon_col = cols[0], cols[1], cols[2]
+                else:
+                    raise ValueError("Soubor obce.csv nemá dost sloupců.")
 
-        # fallback – první tři sloupce
-        if not (name_col and lat_col and lon_col):
-            cols = list(df.columns)
-            if len(cols) < 3:
-                raise ValueError("Soubor obce.csv nemá dost sloupců.")
-            name_col, lat_col, lon_col = cols[0], cols[1], cols[2]
+            df = df.dropna(subset=[name_col, lat_col, lon_col])
 
-        df = df.dropna(subset=[name_col, lat_col, lon_col])
+            geolocations = {}
+            for _, row in df.iterrows():
+                try:
+                    name = str(row[name_col])
+                    lat = float(row[lat_col])
+                    lon = float(row[lon_col])
+                except Exception:
+                    continue
+                geolocations[name] = {
+                    "latitude": lat,
+                    "longitude": lon,
+                    "timezone": "Europe/Prague",
+                }
+
+            if geolocations:
+                return geolocations
+    except Exception:
+        pass  # zkusíme další variantu
+
+    # ---------- 2. pokus: worldcities.xlsx ----------
+    try:
+        df = pd.read_excel("worldcities.xlsx")
+
+        # typická struktura: city, country, lat, lng
+        required = {"city", "country", "lat", "lng"}
+        if not required.issubset(set(df.columns)):
+            raise ValueError("worldcities.xlsx nemá očekávané sloupce.")
+
+        df_cz = df[df["country"].isin(["Czechia", "Czech Republic"])]
 
         geolocations = {}
-        for _, row in df.iterrows():
-            try:
-                name = str(row[name_col])
-                lat = float(row[lat_col])
-                lon = float(row[lon_col])
-            except Exception:
-                continue
-
-            geolocations[name] = {
-                "latitude": lat,
-                "longitude": lon,
+        for _, row in df_cz.iterrows():
+            geolocations[row["city"]] = {
+                "latitude": float(row["lat"]),
+                "longitude": float(row["lng"]),
                 "timezone": "Europe/Prague",
             }
 
-        if not geolocations:
-            raise ValueError("V obce.csv se nepodařilo vytvořit žádné geolokace.")
+        if geolocations:
+            return geolocations
+    except Exception:
+        pass
 
-        return geolocations
-
-    except Exception as e:
-        st.warning(
-            f"Nelze korektně načíst obce z obce.csv ({e}). "
-            f"Použiji základní seznam měst."
-        )
-        return {
-            "Praha":  {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
-            "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
-        }
+    # ---------- 3. fallback ----------
+    return {
+        "Praha": {"latitude": 50.0755, "longitude": 14.4378, "timezone": "Europe/Prague"},
+        "Přerov": {"latitude": 49.4558, "longitude": 17.4509, "timezone": "Europe/Prague"},
+    }
 
 
 geolocations = load_geolocations_from_csv()
@@ -212,13 +242,15 @@ def create_planet_table(planets):
         deg = lon % 30
         di = int(deg)
         mi = int((deg - di) * 60)
-        rows.append({
-            "Planet": f"{planet_symbols.get(p['name'], p['name'])} {p['name']}",
-            "Sign": sign,
-            "Degree": f"{di}°{mi:02d}'",
-            "House": p.get("position", "?"),
-            "Motion": "Retrograde" if p.get("is_retrograde", False) else "Direct",
-        })
+        rows.append(
+            {
+                "Planet": f"{planet_symbols.get(p['name'], p['name'])} {p['name']}",
+                "Sign": sign,
+                "Degree": f"{di}°{mi:02d}'",
+                "House": p.get("position", "?"),
+                "Motion": "Retrograde" if p.get("is_retrograde", False) else "Direct",
+            }
+        )
 
     df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=True, hide_index=True)
@@ -240,10 +272,12 @@ def create_svg_chart(planets):
     r_in = r_out * 0.9
     ay = 23.9
 
-    svg = [(
-        f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg" '
-        'style="background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.15)">'
-    )]
+    svg = [
+        (
+            f'<svg width="{size}" height="{size}" xmlns="http://www.w3.org/2000/svg" '
+            "style=\"background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.15)\">"
+        )
+    ]
 
     # znamení
     for i, sign in enumerate(zodiac):
@@ -257,8 +291,12 @@ def create_svg_chart(planets):
         path = f"M{cx},{cy} L{x1:.1f},{y1:.1f} A{r_out},{r_out} 0 0,1 {x2:.1f},{y2:.1f} Z"
         svg.append(f'<path d="{path}" fill="{col}" stroke="none"/>')
 
-    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{r_out}" stroke="#888" stroke-width="2" fill="none"/>')
-    svg.append(f'<circle cx="{cx}" cy="{cy}" r="{r_in}" stroke="#ccc" stroke-width="1" fill="none"/>')
+    svg.append(
+        f'<circle cx="{cx}" cy="{cy}" r="{r_out}" stroke="#888" stroke-width="2" fill="none"/>'
+    )
+    svg.append(
+        f'<circle cx="{cx}" cy="{cy}" r="{r_in}" stroke="#ccc" stroke-width="1" fill="none"/>'
+    )
 
     # glyphy znamení
     for i, g in enumerate(glyphs):
@@ -266,8 +304,7 @@ def create_svg_chart(planets):
         gx = cx + (r_out + 20) * math.cos(ang)
         gy = cy - (r_out + 20) * math.sin(ang)
         svg.append(
-            f'<text x="{gx:.1f}" y="{gy:.1f}" font-size="18" '
-            f'text-anchor="middle" fill="#444">{g}</text>'
+            f'<text x="{gx:.1f}" y="{gy:.1f}" font-size="18" text-anchor="middle" fill="#444">{g}</text>'
         )
 
     # planety
@@ -278,12 +315,10 @@ def create_svg_chart(planets):
         py = cy - r_in * math.sin(ang)
         sym = planet_symbols.get(p["name"], p["name"][0])
         svg.append(
-            f'<circle cx="{px:.1f}" cy="{py:.1f}" r="12" fill="#fff" '
-            f'stroke="#555" stroke-width="1"/>'
+            f'<circle cx="{px:.1f}" cy="{py:.1f}" r="12" fill="#fff" stroke="#555" stroke-width="1"/>'
         )
         svg.append(
-            f'<text x="{px:.1f}" y="{py+1:.1f}" font-size="16" '
-            f'text-anchor="middle" fill="#000">{sym}</text>'
+            f'<text x="{px:.1f}" y="{py+1:.1f}" font-size="16" text-anchor="middle" fill="#000">{sym}</text>'
         )
 
     svg.append("</svg>")
@@ -303,7 +338,9 @@ def display_horoscope_results(planets):
 #  UI
 # ---------------------------
 
-st.set_page_config(page_title="Zářivá duše • Astrologický horoskop", layout="centered")
+st.set_page_config(
+    page_title="Zářivá duše • Astrologický horoskop", layout="centered"
+)
 
 st.markdown(
     """
@@ -339,7 +376,9 @@ if submit:
         planets = fetch_planet_positions(params)
 
         if planets is None:
-            st.error("Nepodařilo se načíst data planet. Zkontroluj API údaje nebo to zkus znovu.")
+            st.error(
+                "Nepodařilo se načíst data planet. Zkontroluj API údaje nebo to zkus znovu."
+            )
         else:
             display_horoscope_results(planets)
 
